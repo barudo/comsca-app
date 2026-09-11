@@ -22,7 +22,18 @@ npm start
 
 ## Domains
 
-The server-rendered landing page reads the request Host header and recognizes a single community subdomain such as `cebu.comsca.com`. The root domain and `www` show the general landing page. All community subdomains share the same App Router page; its login introduction includes the community name. See `src/lib/community.ts`.
+The root layout reads the request Host header and recognizes a single community subdomain such as `cebu.comsca.com`. It initializes a global `CommunityProvider` around all pages. The landing page displays the subdomain from this shared context. The root domain and `www` use `null` and display “None (main site)”. See `src/lib/community.ts`.
+
+Client components and backend query hooks can read the shared value with:
+
+```tsx
+import { useCommunity } from "@/components/community-provider";
+
+// Inside a client component or custom hook:
+const { subdomain } = useCommunity();
+```
+
+The value is available on the initial render and remains available across client-side navigation. It is derived from the current request rather than local storage or a mutable server singleton, so it cannot leak between users or carry over from another hostname. Server-side queries should derive the same value using `getCommunity((await headers()).get("host"))`; React context is for client components. No backend requests are implemented yet.
 
 To serve public domains, deploy the app, add `comsca.com` and `*.comsca.com` to your hosting project, configure the DNS records specified by your host, and provision HTTPS for both the root and wildcard domain. On a self-hosted reverse proxy, forward the original Host header to Next.js. DNS and TLS must be configured outside this repository; they are not provisioned by the app.
 

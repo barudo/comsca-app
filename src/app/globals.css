@@ -254,6 +254,16 @@ h1 > span {
   color: var(--muted);
   margin: 0;
 }
+.login-heading .subdomain-label {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--pale);
+  color: var(--blue);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
 .community-name {
   overflow-wrap: anywhere;
   font-weight: 600;

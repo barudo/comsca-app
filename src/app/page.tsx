@@ -1,10 +1,8 @@
-import { headers } from "next/headers";
 import Link from "next/link";
 import { LoginForm } from "@/components/login-form";
-import { getCommunity } from "@/lib/community";
+import { CommunityIntroduction } from "@/components/community-introduction";
 
-export default async function Home() {
-  const community = getCommunity((await headers()).get("host"));
+export default function Home() {
   return (
     <div className="site-shell">
       <header className="site-header">
@@ -100,15 +98,7 @@ export default async function Home() {
             <div className="login-heading">
               <span className="eyebrow">YOUR COMMUNITY STARTS HERE</span>
               <h2 id="login-title">Welcome back.</h2>
-              <p>
-                Sign in to your{" "}
-                {community ? (
-                  <strong className="community-name">{community}</strong>
-                ) : (
-                  "COMSCA"
-                )}{" "}
-                community.
-              </p>
+              <CommunityIntroduction />
             </div>
             <LoginForm />
             <div className="join-note">

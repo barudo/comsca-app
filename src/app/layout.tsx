@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { CommunityProvider } from "@/components/community-provider";
+import { getCommunity } from "@/lib/community";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,10 +10,14 @@ export const metadata: Metadata = {
     "Community Managed Savings and Credit Association. Save together, grow together, and sign in to your COMSCA community.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const subdomain = getCommunity((await headers()).get("host"));
+
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <CommunityProvider subdomain={subdomain}>{children}</CommunityProvider>
+      </body>
     </html>
   );
 }
