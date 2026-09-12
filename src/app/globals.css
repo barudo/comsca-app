@@ -258,6 +258,9 @@ h1 > span {
 .login-form {
   margin-top: 29px;
 }
+.login-heading + .submit-button {
+  margin-top: 29px;
+}
 .field {
   margin-bottom: 20px;
 }
