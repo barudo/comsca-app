@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { CommunityProvider } from "@/components/community-provider";
 import { getCommunity } from "@/lib/community";
+import { AuthProvider } from "@/components/auth-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en">
       <body>
-        <CommunityProvider subdomain={subdomain}>{children}</CommunityProvider>
+        <CommunityProvider subdomain={subdomain}><AuthProvider>{children}</AuthProvider></CommunityProvider>
       </body>
     </html>
   );

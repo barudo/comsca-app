@@ -478,3 +478,16 @@ h1 > span {
     transition: none !important;
   }
 }
+
+.login-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.login-fields:disabled {
+  opacity: 0.65;
+}
+.login-fields:disabled button {
+  cursor: wait;
+}

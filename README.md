@@ -46,3 +46,8 @@ The login interface has required email/password validation, a password visibilit
 ## Content
 
 The COMSCA introduction is based on the [CoMSCA Network definition](https://comsca.worldvision.org.ph/about/). App Router request headers follow the [Next.js documentation](https://nextjs.org/docs/app/api-reference/functions/headers).
+
+
+### Authentication
+
+Password and OTP login use the backend `/auth/login/password`, `/auth/login/otp/request`, and `/auth/login/otp/verify` endpoints under `NEXT_PUBLIC_API_URL`. OTP codes remain strings. Successful login stores the returned session in the root `AuthProvider` (available through `useAuth()`) and navigates to `/dashboard` in the `(protected)` route group. Tokens are kept in memory only: reloads require a new login, and session expiry clears the state. The dashboard currently contains no private data; its client navigation guard does not replace backend authorization for future data requests.

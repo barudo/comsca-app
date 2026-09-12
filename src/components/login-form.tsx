@@ -2,34 +2,65 @@
 
 import { useState, type FormEvent } from "react";
 
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth-provider";
+import { authRequest, readSession } from "@/lib/auth";
+
 export function LoginForm() {
+  const router = useRouter();
+  const { setSession } = useAuth();
+  const [pending, setPending] = useState(false);
+  const [otpPhone, setOtpPhone] = useState("");
   const [useOtp, setUseOtp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // Connect your authentication provider here. Never simulate a successful login.
-    setMessage(
-      useOtp
-        ? "OTP sign-in is not available yet. Please contact your group administrator while account access is being set up."
-        : "Sign-in is not available yet. Please contact your group administrator while account access is being set up.",
-    );
+    if (pending) return;
+    const data = new FormData(event.currentTarget);
+    const phone = String(data.get("phone") || "").trim();
+    setPending(true);
+    setMessage("");
+    try {
+      if (useOtp && !otpPhone) {
+        const result = await authRequest("otp/request", { phone });
+        setOtpPhone(phone);
+        setMessage(result.message || "If an account exists for this phone number, a verification code has been sent.");
+      } else {
+        const result = useOtp
+          ? await authRequest("otp/verify", { phone: otpPhone, otp: String(data.get("otp") || "").trim() })
+          : await authRequest("password", { phone, password: String(data.get("password") || "") });
+        setSession(readSession(result));
+        router.replace("/dashboard");
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Sign-in failed. Please try again.");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
-    <form className="login-form" onSubmit={handleSubmit} method="post">
+    <form className="login-form" onSubmit={handleSubmit} method="post" aria-busy={pending}>
+      <fieldset className="login-fields" disabled={pending}>
       <div className="field">
         <label htmlFor="phone">Phone</label>
         <input
           id="phone"
           name="phone"
           type="tel"
+          readOnly={!!otpPhone}
           autoComplete="tel"
           placeholder="Enter your phone number"
           required
         />
       </div>
+      {useOtp && otpPhone && <div className="field">
+        <label htmlFor="otp">Verification code</label>
+        <input id="otp" name="otp" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{4,10}" minLength={4} maxLength={10} placeholder="Enter your OTP" required autoFocus />
+        <button className="text-button" type="button" onClick={() => { setOtpPhone(""); setMessage(""); }}>Change phone or request a new code</button>
+      </div>}
       {!useOtp && <div className="field">
         <label htmlFor="password">Password</label>
         <div className="password-input">
@@ -76,7 +107,7 @@ export function LoginForm() {
         </button>
       </div>}
       <button className="submit-button" type="submit">
-        {useOtp ? "Send OTP" : "Sign in"} <span aria-hidden="true">↗</span>
+        {pending ? "Please wait…" : useOtp ? otpPhone ? "Verify OTP" : "Send OTP" : "Sign in"} <span aria-hidden="true">↗</span>
       </button>
       <div className="login-method">
         <button
@@ -84,6 +115,7 @@ export function LoginForm() {
           type="button"
           onClick={() => {
             setUseOtp(!useOtp);
+            setOtpPhone("");
             setShowPassword(false);
             setMessage("");
           }}
@@ -91,6 +123,7 @@ export function LoginForm() {
           {useOtp ? "Login using password" : "Login using OTP"}
         </button>
       </div>
+      </fieldset>
       <p className="form-message" role="status" aria-live="polite">
         {message}
       </p>
