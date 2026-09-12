@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 
 export function LoginForm() {
+  const [useOtp, setUseOtp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -10,24 +11,26 @@ export function LoginForm() {
     event.preventDefault();
     // Connect your authentication provider here. Never simulate a successful login.
     setMessage(
-      "Sign-in is not available yet. Please contact your group administrator while account access is being set up.",
+      useOtp
+        ? "OTP sign-in is not available yet. Please contact your group administrator while account access is being set up."
+        : "Sign-in is not available yet. Please contact your group administrator while account access is being set up.",
     );
   }
 
   return (
     <form className="login-form" onSubmit={handleSubmit} method="post">
       <div className="field">
-        <label htmlFor="email">Email address</label>
+        <label htmlFor="phone">Phone</label>
         <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="username"
-          placeholder="you@example.com"
+          id="phone"
+          name="phone"
+          type="tel"
+          autoComplete="tel"
+          placeholder="Enter your phone number"
           required
         />
       </div>
-      <div className="field">
+      {!useOtp && <div className="field">
         <label htmlFor="password">Password</label>
         <div className="password-input">
           <input
@@ -58,8 +61,8 @@ export function LoginForm() {
             </svg>
           </button>
         </div>
-      </div>
-      <div className="form-options">
+      </div>}
+      {!useOtp && <div className="form-options">
         <button
           className="text-button"
           type="button"
@@ -71,10 +74,23 @@ export function LoginForm() {
         >
           Forgot password?
         </button>
-      </div>
+      </div>}
       <button className="submit-button" type="submit">
-        Sign in <span aria-hidden="true">↗</span>
+        {useOtp ? "Send OTP" : "Sign in"} <span aria-hidden="true">↗</span>
       </button>
+      <div className="login-method">
+        <button
+          className="text-button"
+          type="button"
+          onClick={() => {
+            setUseOtp(!useOtp);
+            setShowPassword(false);
+            setMessage("");
+          }}
+        >
+          {useOtp ? "Login using password" : "Login using OTP"}
+        </button>
+      </div>
       <p className="form-message" role="status" aria-live="polite">
         {message}
       </p>
