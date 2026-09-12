@@ -1,16 +1,24 @@
 import Link from "next/link";
-import { LoginForm } from "@/components/login-form";
+import { headers } from "next/headers";
+import { getCommunity } from "@/lib/community";
+import { validateGroupSlug } from "@/lib/group-validation";
+import { LoginForm, RetryGroupValidation } from "@/components/login-form";
 import { CommunityIntroduction } from "@/components/community-introduction";
 
-export default function Home() {
+export default async function Home() {
+  const slug = getCommunity((await headers()).get("host"));
+  const groupStatus = slug ? await validateGroupSlug(slug) : "registered";
   return (
     <div className="site-shell">
       <header className="site-header">
         <Link className="brand" href="/" aria-label="COMSCA home">
           <span className="brand-mark" aria-hidden="true">
-            <i />
-            <i />
-            <i />
+            <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M7 20h10" />
+              <path d="M10 20c5.5-2.5.8-6.4 3-10" />
+              <path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z" />
+              <path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z" />
+            </svg>
           </span>
           comsca<span className="brand-dot">.</span>
         </Link>
@@ -97,15 +105,29 @@ export default function Home() {
             </div>
             <div className="login-heading">
               <span className="eyebrow">YOUR COMMUNITY STARTS HERE</span>
-              <h2 id="login-title">Welcome back.</h2>
-              <CommunityIntroduction />
+              <h2 id="login-title">
+                {groupStatus === "unregistered" ? "Group not found." : groupStatus === "error" ? "Unable to verify group." : "Welcome back."}
+              </h2>
+              {groupStatus === "registered" && <CommunityIntroduction />}
+              {groupStatus === "unregistered" && (
+                <p>This group doesn’t exist. Want to make <strong>{slug}</strong> your group? Register it to get started.</p>
+              )}
+              {groupStatus === "error" && (
+                <p>We couldn’t check your group right now. Please try again.</p>
+              )}
             </div>
-            <LoginForm />
-            <div className="join-note">
+            {groupStatus === "unregistered" && (
+              <a className="submit-button" href="https://comsca.com/register">Register Here <span aria-hidden="true">↗</span></a>
+            )}
+            {groupStatus === "error" && (
+              <RetryGroupValidation />
+            )}
+            {groupStatus === "registered" && <LoginForm />}
+            {groupStatus === "registered" && <div className="join-note">
               New to COMSCA?
               <br />
               <span>Ask your group administrator for an account.</span>
-            </div>
+            </div>}
           </div>
           <p className="below-card">
             <span aria-hidden="true">◇</span> A little saved today. A stronger

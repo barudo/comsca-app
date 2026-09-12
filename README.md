@@ -33,7 +33,7 @@ import { useCommunity } from "@/components/community-provider";
 const { subdomain } = useCommunity();
 ```
 
-The value is available on the initial render and remains available across client-side navigation. It is derived from the current request rather than local storage or a mutable server singleton, so it cannot leak between users or carry over from another hostname. Server-side queries should derive the same value using `getCommunity((await headers()).get("host"))`; React context is for client components. No backend requests are implemented yet.
+The value is available on the initial render and remains available across client-side navigation. It is derived from the current request rather than local storage or a mutable server singleton, so it cannot leak between users or carry over from another hostname. Server-side queries should derive the same value using `getCommunity((await headers()).get("host"))`; React context is for client components. On each page load with a community subdomain, the server calls `GET /groups/validate-slug?slug=...` without caching. `success: false` shows login; `success: true` shows a registration link. Failed or malformed responses show a retry message. Hosts without a community subdomain keep the default login view. Set `NEXT_PUBLIC_API_URL` to override the API base URL (defaults to the same API as comsca-landing).
 
 To serve public domains, deploy the app, add `comsca.com` and `*.comsca.com` to your hosting project, configure the DNS records specified by your host, and provision HTTPS for both the root and wildcard domain. On a self-hosted reverse proxy, forward the original Host header to Next.js. DNS and TLS must be configured outside this repository; they are not provisioned by the app.
 

@@ -71,28 +71,15 @@ input {
   color: #7d9ee5;
 }
 .brand-mark {
-  width: 32px;
-  height: 31px;
-  margin-right: 10px;
-  display: flex;
-  gap: 3px;
-  align-items: flex-end;
-  transform: rotate(-8deg);
-}
-.brand-mark i {
-  display: block;
-  background: var(--blue);
-  width: 8px;
-  border-radius: 4px;
-}
-.brand-mark i:nth-child(1) {
-  height: 17px;
-}
-.brand-mark i:nth-child(2) {
-  height: 25px;
-}
-.brand-mark i:nth-child(3) {
-  height: 31px;
+  width: 36px;
+  height: 39px;
+  margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2054ad;
+  background: #edf4ff;
+  border-radius: 11px;
 }
 .header-caption {
   font-size: 12px;

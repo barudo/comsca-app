@@ -81,3 +81,11 @@ export function LoginForm() {
     </form>
   );
 }
+
+export function RetryGroupValidation() {
+  return (
+    <button className="submit-button" type="button" onClick={() => window.location.reload()}>
+      Try again
+    </button>
+  );
+}
