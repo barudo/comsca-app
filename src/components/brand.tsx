@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useCommunity } from "@/components/community-provider";
 
-export function Brand({ href = "/" }: { href?: string }) {
+export function Brand({ href = "/", groupName }: { href?: string; groupName?: string | null }) {
   const { group } = useCommunity();
-  const name = group ? `${group.name} Comsca` : "comsca";
+  const resolvedGroupName = groupName === undefined ? group?.name : groupName;
+  const name = resolvedGroupName ? `${resolvedGroupName} comsca` : "comsca";
   return (
     <Link className="brand" href={href} aria-label={`${name} home`}>
           <span className="brand-mark" aria-hidden="true">

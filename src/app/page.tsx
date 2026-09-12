@@ -11,7 +11,7 @@ export default async function Home() {
   return (
     <div className="site-shell">
       <header className="site-header">
-        <Brand />
+        <Brand groupName={group?.name ?? null} />
         <span className="header-caption">
           Small savings. Shared possibilities.
         </span>
