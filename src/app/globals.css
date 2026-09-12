@@ -491,3 +491,64 @@ h1 > span {
 .login-fields:disabled button {
   cursor: wait;
 }
+
+.protected-shell {
+  min-height: 100svh;
+  background: var(--pale);
+}
+.protected-header {
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+.protected-nav {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 20px 6.25%;
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  flex-wrap: wrap;
+}
+.protected-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.protected-links a {
+  padding: 11px 16px;
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+.protected-links a:hover,
+.protected-links a[aria-current="page"] {
+  background: var(--pale);
+  color: var(--blue);
+}
+.protected-community {
+  margin-left: auto;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 13px;
+}
+.protected-content {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 40px 6.25%;
+}
+.protected-content h1 {
+  margin: 0 0 16px;
+  font-size: 36px;
+  letter-spacing: -1px;
+}
+@media (max-width: 600px) {
+  .protected-nav {
+    gap: 16px;
+  }
+  .protected-links {
+    order: 3;
+    width: 100%;
+  }
+}
