@@ -2,18 +2,22 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 
-const CommunityContext = createContext<string | null | undefined>(undefined);
+import type { Group } from "@/lib/group-validation";
+
+const CommunityContext = createContext<{ subdomain: string | null; group: Group | null } | undefined>(undefined);
 
 export function CommunityProvider({
   subdomain,
+  group,
   children,
 }: {
   subdomain: string | null;
+  group: Group | null;
   children: ReactNode;
 }) {
   // The request hostname is the source of truth; do not persist across domains.
   return (
-    <CommunityContext.Provider value={subdomain}>
+    <CommunityContext.Provider value={{ subdomain, group }}>
       {children}
     </CommunityContext.Provider>
   );
@@ -21,9 +25,9 @@ export function CommunityProvider({
 
 /** Shared hostname context for client components and future backend query hooks. */
 export function useCommunity() {
-  const subdomain = useContext(CommunityContext);
-  if (subdomain === undefined) {
+  const community = useContext(CommunityContext);
+  if (community === undefined) {
     throw new Error("useCommunity must be used within CommunityProvider");
   }
-  return { subdomain };
+  return community;
 }

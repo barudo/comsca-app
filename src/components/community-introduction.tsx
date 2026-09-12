@@ -3,22 +3,20 @@
 import { useCommunity } from "@/components/community-provider";
 
 export function CommunityIntroduction() {
-  const { subdomain } = useCommunity();
+  const { group } = useCommunity();
 
   return (
     <>
       <p>
         Sign in to your{" "}
-        {subdomain ? (
-          <strong className="community-name">{subdomain}</strong>
+        {group ? (
+          <strong className="community-name">{group.name}</strong>
         ) : (
           "COMSCA"
         )}{" "}
         community.
       </p>
-      <p className="subdomain-label">
-        Subdomain: <strong>{subdomain ?? "None (main site)"}</strong>
-      </p>
+
     </>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { CommunityProvider } from "@/components/community-provider";
+import { getCommunityValidation } from "@/lib/community-validation";
 import { getCommunity } from "@/lib/community";
 import { AuthProvider } from "@/components/auth-provider";
 import "./globals.css";
@@ -14,10 +15,12 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const subdomain = getCommunity((await headers()).get("host"));
 
+  const group = subdomain ? (await getCommunityValidation(subdomain)).group : null;
+
   return (
     <html lang="en">
       <body>
-        <CommunityProvider subdomain={subdomain}><AuthProvider>{children}</AuthProvider></CommunityProvider>
+        <CommunityProvider subdomain={subdomain} group={group}><AuthProvider>{children}</AuthProvider></CommunityProvider>
       </body>
     </html>
   );

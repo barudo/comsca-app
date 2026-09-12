@@ -1,13 +1,13 @@
 import { Brand } from "@/components/brand";
 import { headers } from "next/headers";
 import { getCommunity } from "@/lib/community";
-import { validateGroupSlug } from "@/lib/group-validation";
+import { getCommunityValidation } from "@/lib/community-validation";
 import { LoginForm, RetryGroupValidation } from "@/components/login-form";
 import { CommunityIntroduction } from "@/components/community-introduction";
 
 export default async function Home() {
   const slug = getCommunity((await headers()).get("host"));
-  const groupStatus = slug ? await validateGroupSlug(slug) : "registered";
+  const { status: groupStatus, group } = slug ? await getCommunityValidation(slug) : { status: "registered", group: null };
   return (
     <div className="site-shell">
       <header className="site-header">
@@ -96,7 +96,7 @@ export default async function Home() {
             <div className="login-heading">
               <span className="eyebrow">YOUR COMMUNITY STARTS HERE</span>
               <h2 id="login-title">
-                {groupStatus === "unregistered" ? "Group not found." : groupStatus === "error" ? "Unable to verify group." : "Welcome back."}
+                {groupStatus === "unregistered" ? "Group not found." : groupStatus === "error" ? "Unable to verify group." : group ? `Welcome back to ${group.name}.` : "Welcome back."}
               </h2>
               {groupStatus === "registered" && <CommunityIntroduction />}
               {groupStatus === "unregistered" && (

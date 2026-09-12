@@ -1,8 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { useCommunity } from "@/components/community-provider";
 
 export function Brand({ href = "/" }: { href?: string }) {
+  const { group } = useCommunity();
+  const name = group ? `${group.name} Comsca` : "comsca";
   return (
-    <Link className="brand" href={href} aria-label="COMSCA home">
+    <Link className="brand" href={href} aria-label={`${name} home`}>
           <span className="brand-mark" aria-hidden="true">
             <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M7 20h10" />
@@ -11,7 +16,7 @@ export function Brand({ href = "/" }: { href?: string }) {
               <path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z" />
             </svg>
           </span>
-          comsca<span className="brand-dot">.</span>
+          <span className="brand-name">{name}<span className="brand-dot">.</span></span>
         </Link>
   );
 }

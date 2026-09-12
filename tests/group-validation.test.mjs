@@ -7,11 +7,11 @@ test("validates slug availability using the backend's inverted success flag", as
     assert.equal(new URL(url).searchParams.get("slug"), "cebu");
     assert.ok(new URL(url).pathname.endsWith("/groups/validate-slug"));
     assert.equal(options.cache, "no-store");
-    return Response.json({ success: false });
+    return Response.json({ success: false, group: { id: 1, name: "COMSCA" } });
   });
-  assert.equal(await validateGroupSlug("cebu"), "registered");
+  assert.deepEqual(await validateGroupSlug("cebu"), { status: "registered", group: { id: 1, name: "COMSCA" } });
   globalThis.fetch = async () => Response.json({ success: true });
-  assert.equal(await validateGroupSlug("cebu"), "unregistered");
+  assert.deepEqual(await validateGroupSlug("cebu"), { status: "unregistered", group: null });
 });
 
 test("failed and malformed responses never mark a group as available or registered", async (t) => {
@@ -25,6 +25,6 @@ test("failed and malformed responses never mark a group as available or register
     () => { throw new Error("network failure"); },
   ]) {
     globalThis.fetch = async () => response();
-    assert.equal(await validateGroupSlug("cebu"), "error");
+    assert.deepEqual(await validateGroupSlug("cebu"), { status: "error", group: null });
   }
 });
