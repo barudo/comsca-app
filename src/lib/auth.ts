@@ -7,12 +7,13 @@ export type Session = {
 
 export type User = { name: string };
 
-export async function fetchCurrentUser(accessToken: string, signal?: AbortSignal): Promise<User> {
+export async function fetchCurrentUser(accessToken: string, groupSlug: string, signal?: AbortSignal): Promise<User> {
+  if (!groupSlug.trim()) throw new Error("Please open your community’s URL to sign in.");
   const base = (process.env.NEXT_PUBLIC_API_URL ||
     "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
   const response = await fetch(`${base}/users/me`, {
     method: "GET",
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, "x-group-slug": groupSlug },
     cache: "no-store",
     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
   });
@@ -23,7 +24,8 @@ export async function fetchCurrentUser(accessToken: string, signal?: AbortSignal
   return { name: body.user.name.trim() };
 }
 
-export async function authRequest(endpoint: string, payload: Record<string, string>) {
+export async function authRequest(endpoint: string, payload: Record<string, string>, groupSlug: string) {
+  if (!groupSlug.trim()) throw new Error("Please open your community’s URL to sign in.");
   const base = (process.env.NEXT_PUBLIC_API_URL ||
     "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
   let response;
@@ -31,7 +33,7 @@ export async function authRequest(endpoint: string, payload: Record<string, stri
   try {
     response = await fetch(`${base}/auth/login/${endpoint}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-group-slug": groupSlug },
       body: JSON.stringify(payload),
       cache: "no-store",
       signal: AbortSignal.timeout(15000),

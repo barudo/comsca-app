@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useCommunity } from "@/components/community-provider";
 import { fetchCurrentUser, type Session, type User } from "@/lib/auth";
 
 const AuthContext = createContext<{
@@ -10,23 +11,24 @@ const AuthContext = createContext<{
 } | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { subdomain } = useCommunity();
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<{ accessToken: string; user: User } | null>(null);
+  const [profile, setProfile] = useState<{ accessToken: string; groupSlug: string; user: User } | null>(null);
   const accessToken = session?.access_token;
-  const user = accessToken && profile?.accessToken === accessToken ? profile.user : null;
+  const user = accessToken && profile?.accessToken === accessToken && profile.groupSlug === subdomain ? profile.user : null;
 
   useEffect(() => {
-    if (!accessToken) return;
+    if (!accessToken || !subdomain) return;
     const controller = new AbortController();
-    fetchCurrentUser(accessToken, controller.signal)
+    fetchCurrentUser(accessToken, subdomain, controller.signal)
       .then((user) => {
-        if (!controller.signal.aborted) setProfile({ accessToken, user });
+        if (!controller.signal.aborted) setProfile({ accessToken, groupSlug: subdomain, user });
       })
       .catch(() => {
         if (!controller.signal.aborted) setProfile(null);
       });
     return () => controller.abort();
-  }, [accessToken]);
+  }, [accessToken, subdomain]);
   useEffect(() => {
     if (!session?.expires_at) return;
     const timer = setTimeout(() => setSession(null), Math.max(0, session.expires_at * 1000 - Date.now()));

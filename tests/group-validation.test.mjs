@@ -6,6 +6,7 @@ test("validates slug availability using the backend's inverted success flag", as
   t.mock.method(globalThis, "fetch", async (url, options) => {
     assert.equal(new URL(url).searchParams.get("slug"), "cebu");
     assert.ok(new URL(url).pathname.endsWith("/groups/validate-slug"));
+    assert.equal(options.headers["x-group-slug"], "cebu");
     assert.equal(options.cache, "no-store");
     return Response.json({ success: false, group: { id: 1, name: "COMSCA" } });
   });

@@ -3,11 +3,13 @@
 import { useState, type FormEvent } from "react";
 
 import { useRouter } from "next/navigation";
+import { useCommunity } from "@/components/community-provider";
 import { useAuth } from "@/components/auth-provider";
 import { authRequest, readSession } from "@/lib/auth";
 
 export function LoginForm() {
   const router = useRouter();
+  const { subdomain } = useCommunity();
   const { setSession } = useAuth();
   const [pending, setPending] = useState(false);
   const [otpPhone, setOtpPhone] = useState("");
@@ -23,14 +25,15 @@ export function LoginForm() {
     setPending(true);
     setMessage("");
     try {
+      if (!subdomain) throw new Error("Please open your community’s URL to sign in.");
       if (useOtp && !otpPhone) {
-        const result = await authRequest("otp/request", { phone });
+        const result = await authRequest("otp/request", { phone }, subdomain);
         setOtpPhone(phone);
         setMessage(result.message || "If an account exists for this phone number, a verification code has been sent.");
       } else {
         const result = useOtp
-          ? await authRequest("otp/verify", { phone: otpPhone, otp: String(data.get("otp") || "").trim() })
-          : await authRequest("password", { phone, password: String(data.get("password") || "") });
+          ? await authRequest("otp/verify", { phone: otpPhone, otp: String(data.get("otp") || "").trim() }, subdomain)
+          : await authRequest("password", { phone, password: String(data.get("password") || "") }, subdomain);
         setSession(readSession(result));
         router.replace("/dashboard");
       }

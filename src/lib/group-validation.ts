@@ -12,7 +12,7 @@ export async function validateGroupSlug(slug: string): Promise<GroupValidation> 
   try {
     const response = await fetch(
       `${baseUrl}/groups/validate-slug?${new URLSearchParams({ slug })}`,
-      { cache: "no-store", signal: AbortSignal.timeout(10000) },
+      { headers: { "x-group-slug": slug }, cache: "no-store", signal: AbortSignal.timeout(10000) },
     );
     if (!response.ok) return { status: "error", group: null };
     const body: unknown = await response.json();
