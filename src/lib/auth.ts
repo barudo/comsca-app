@@ -5,6 +5,24 @@ export type Session = {
   expires_in?: number;
 };
 
+export type User = { name: string };
+
+export async function fetchCurrentUser(accessToken: string, signal?: AbortSignal): Promise<User> {
+  const base = (process.env.NEXT_PUBLIC_API_URL ||
+    "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
+  const response = await fetch(`${base}/users/me`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
+  });
+  const body = await response.json();
+  if (!response.ok || body?.success !== true || typeof body.user?.name !== "string" || !body.user.name.trim()) {
+    throw new Error("Unable to load your profile.");
+  }
+  return { name: body.user.name.trim() };
+}
+
 export async function authRequest(endpoint: string, payload: Record<string, string>) {
   const base = (process.env.NEXT_PUBLIC_API_URL ||
     "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");

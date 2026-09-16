@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Brand } from "@/components/brand";
 import { useCommunity } from "@/components/community-provider";
+import { useAuth } from "@/components/auth-provider";
 
 const links = [{ href: "/dashboard", label: "Dashboard" }];
 
 export function ProtectedNavigation() {
   const pathname = usePathname();
   const { subdomain } = useCommunity();
+  const { user } = useAuth();
 
   return (
     <header className="protected-header">
@@ -22,7 +24,10 @@ export function ProtectedNavigation() {
             </Link>
           ))}
         </nav>
-        {subdomain && <span className="protected-community">{subdomain}</span>}
+        <div className="protected-account">
+          {subdomain && <span className="protected-community">{subdomain}</span>}
+          {user && <span className="protected-user">{user.name}</span>}
+        </div>
       </div>
     </header>
   );

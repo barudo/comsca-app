@@ -517,9 +517,21 @@ h1 > span {
   background: var(--pale);
   color: var(--blue);
 }
-.protected-community {
+.protected-account {
   margin-left: auto;
   max-width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+}
+.protected-user {
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.protected-community {
   overflow-wrap: anywhere;
   color: var(--muted);
   font-size: 13px;

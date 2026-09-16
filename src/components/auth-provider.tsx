@@ -1,21 +1,38 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session } from "@/lib/auth";
+import { fetchCurrentUser, type Session, type User } from "@/lib/auth";
 
 const AuthContext = createContext<{
   session: Session | null;
+  user: User | null;
   setSession: (session: Session | null) => void;
 } | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<{ accessToken: string; user: User } | null>(null);
+  const accessToken = session?.access_token;
+  const user = accessToken && profile?.accessToken === accessToken ? profile.user : null;
+
+  useEffect(() => {
+    if (!accessToken) return;
+    const controller = new AbortController();
+    fetchCurrentUser(accessToken, controller.signal)
+      .then((user) => {
+        if (!controller.signal.aborted) setProfile({ accessToken, user });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setProfile(null);
+      });
+    return () => controller.abort();
+  }, [accessToken]);
   useEffect(() => {
     if (!session?.expires_at) return;
     const timer = setTimeout(() => setSession(null), Math.max(0, session.expires_at * 1000 - Date.now()));
     return () => clearTimeout(timer);
   }, [session]);
-  return <AuthContext.Provider value={{ session, setSession }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ session, setSession, user }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
