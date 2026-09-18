@@ -483,6 +483,39 @@ h1 > span {
   cursor: wait;
 }
 
+.members-feedback {
+  margin-top: 24px;
+}
+.members-table-wrapper {
+  margin-top: 24px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.members-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.members-table caption {
+  padding: 16px 20px;
+  text-align: left;
+  color: var(--muted);
+}
+.members-table th,
+.members-table td {
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+  min-width: 100px;
+}
+.members-table thead {
+  background: var(--pale);
+}
+.members-table tbody th {
+  font-weight: 500;
+}
 .protected-shell {
   min-height: 100svh;
   background: var(--pale);

@@ -6,7 +6,10 @@ import { Brand } from "@/components/brand";
 import { useCommunity } from "@/components/community-provider";
 import { useAuth } from "@/components/auth-provider";
 
-const links = [{ href: "/dashboard", label: "Dashboard" }];
+const links = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/members", label: "Members" },
+];
 
 export function ProtectedNavigation() {
   const pathname = usePathname();
