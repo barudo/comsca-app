@@ -10,14 +10,30 @@ test("members requests are authenticated, community scoped, and uncached", async
     assert.equal(options.headers["x-group-slug"], "cebu");
     assert.equal(options.cache, "no-store");
     return Response.json({ success: true, users: [
-      { id: 1, name: "Maria", email: "maria@example.com", phone: "09171234567", private_field: "omitted" },
-      { id: 2, name: "Juan" },
+      { id: 1, first_name: " Maria ", family_name: " Santos ", email: "maria@example.com", phone: "09171234567", private_field: "omitted" },
+      { id: 2, first_name: "Juan", family_name: null },
     ] });
   });
   assert.deepEqual(await fetchMembers("access", "cebu"), [
-    { id: 1, name: "Maria", email: "maria@example.com", phone: "09171234567" },
+    { id: 1, name: "Maria Santos", email: "maria@example.com", phone: "09171234567" },
     { id: 2, name: "Juan", email: null, phone: null },
   ]);
+});
+
+test("members accepts the groups/users response with split names and nullable contact details", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({
+    success: true,
+    current_cycle_id: null,
+    users: [{
+      id: "6", group_id: "6", first_name: "Marie Ronaldine", family_name: "Villocido",
+      username: null, email: null, phone: "+639499981817", address: null, role: "OWNER",
+      created_at: "2026-09-12T07:42:58.033Z", updated_at: "2026-09-12T07:42:58.033Z",
+      is_current_cycle_member: false,
+    }],
+  }));
+  assert.deepEqual(await fetchMembers("access", "cebu"), [{
+    id: "6", name: "Marie Ronaldine Villocido", email: null, phone: "+639499981817",
+  }]);
 });
 
 test("empty results succeed while failed or malformed responses reject", async (t) => {

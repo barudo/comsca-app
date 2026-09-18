@@ -20,12 +20,14 @@ export async function fetchMembers(accessToken: string, groupSlug: string, signa
     throw new Error("Unable to load members. Please try again.");
   }
   return body.users.map((user: unknown) => {
-    if (!user || typeof user !== "object" || !("name" in user) || typeof user.name !== "string") {
+    if (!user || typeof user !== "object" ||
+      !("first_name" in user) || typeof user.first_name !== "string" ||
+      !("family_name" in user) || (user.family_name !== null && typeof user.family_name !== "string")) {
       throw new Error("Unable to load members. Please try again.");
     }
     return {
       id: "id" in user && (typeof user.id === "string" || typeof user.id === "number") ? user.id : undefined,
-      name: user.name.trim(),
+      name: [user.first_name.trim(), user.family_name?.trim()].filter(Boolean).join(" "),
       email: "email" in user && typeof user.email === "string" ? user.email : null,
       phone: "phone" in user && typeof user.phone === "string" ? user.phone : null,
     };
