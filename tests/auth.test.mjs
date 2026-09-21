@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { authRequest, fetchCurrentUser, readSession } from "../src/lib/auth.ts";
+import { authRequest, canViewMembers, fetchCurrentUser, readSession } from "../src/lib/auth.ts";
 
 test("current user uses an authenticated uncached GET and reads the user's name", async (t) => {
   t.mock.method(globalThis, "fetch", async (url, options) => {
@@ -9,9 +9,29 @@ test("current user uses an authenticated uncached GET and reads the user's name"
     assert.equal(options.headers["x-group-slug"], "cebu");
     assert.equal(options.headers.Authorization, "Bearer access");
     assert.equal(options.cache, "no-store");
-    return Response.json({ success: true, user: { name: " Maria Santos " }, group: { name: "Community" } });
+    return Response.json({ success: true, user: { name: " Maria Santos ", role: "OWNER" }, group: { name: "Community" } });
   });
-  assert.deepEqual(await fetchCurrentUser("access", "cebu"), { name: "Maria Santos" });
+  assert.deepEqual(await fetchCurrentUser("access", "cebu"), { name: "Maria Santos", role: "OWNER" });
+});
+
+test("only owners, admins, and treasurers can view members", () => {
+  for (const role of ["OWNER", "ADMIN", "TREASURER"]) {
+    assert.equal(canViewMembers({ name: "Maria", role }), true);
+  }
+  for (const role of ["MEMBER", "SECRETARY", "owner", "", "UNKNOWN", null]) {
+    assert.equal(canViewMembers({ name: "Maria", role }), false);
+  }
+  assert.equal(canViewMembers(null), false);
+});
+
+test("missing or malformed profile roles never grant members access", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch");
+  for (const role of [undefined, null, 1, ["OWNER"], { role: "ADMIN" }]) {
+    fetch.mock.mockImplementation(async () => Response.json({ success: true, user: { name: "Maria", role } }));
+    const user = await fetchCurrentUser("access", "cebu");
+    assert.equal(user.role, null);
+    assert.equal(canViewMembers(user), false);
+  }
 });
 
 test("current user rejects failed and malformed profile responses", async (t) => {

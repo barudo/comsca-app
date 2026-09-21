@@ -5,7 +5,12 @@ export type Session = {
   expires_in?: number;
 };
 
-export type User = { name: string };
+export type User = { name: string; role: string | null };
+
+/** UI access check; the API must independently enforce the same roles. */
+export function canViewMembers(user: User | null): boolean {
+  return user?.role === "OWNER" || user?.role === "ADMIN" || user?.role === "TREASURER";
+}
 
 export async function fetchCurrentUser(accessToken: string, groupSlug: string, signal?: AbortSignal): Promise<User> {
   if (!groupSlug.trim()) throw new Error("Please open your community’s URL to sign in.");
@@ -21,7 +26,10 @@ export async function fetchCurrentUser(accessToken: string, groupSlug: string, s
   if (!response.ok || body?.success !== true || typeof body.user?.name !== "string" || !body.user.name.trim()) {
     throw new Error("Unable to load your profile.");
   }
-  return { name: body.user.name.trim() };
+  return {
+    name: body.user.name.trim(),
+    role: typeof body.user.role === "string" ? body.user.role : null,
+  };
 }
 
 export async function authRequest(endpoint: string, payload: Record<string, string>, groupSlug: string) {

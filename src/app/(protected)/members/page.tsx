@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { fetchMembers, type Member } from "@/lib/members";
+import { canViewMembers } from "@/lib/auth";
 
 function MembersTable({ accessToken, groupSlug }: { accessToken: string; groupSlug: string }) {
   const [members, setMembers] = useState<Member[] | null>(null);
@@ -53,8 +54,17 @@ function MembersTable({ accessToken, groupSlug }: { accessToken: string; groupSl
 }
 
 export default function MembersPage() {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const { subdomain, group } = useCommunity();
+
+  if (!canViewMembers(user)) {
+    return (
+      <main className="protected-content">
+        <h1>Members</h1>
+        <p role="status">Members access is restricted to owners, admins, and treasurers with a verified profile.</p>
+      </main>
+    );
+  }
 
   return (
     <main className="protected-content">
