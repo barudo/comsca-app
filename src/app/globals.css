@@ -591,6 +591,58 @@ h1 > span {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+.protected-account-menu {
+  position: relative;
+  max-width: 100%;
+}
+.protected-account-menu summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  list-style: none;
+}
+.protected-account-menu summary::-webkit-details-marker {
+  display: none;
+}
+.protected-account-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 10;
+  min-width: 160px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 10%);
+}
+.protected-account-dropdown a,
+.protected-account-dropdown button {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.protected-account-menu summary:hover,
+.protected-account-dropdown a:hover,
+.protected-account-dropdown button:hover {
+  background: var(--pale);
+  color: var(--blue);
+}
+.protected-account-menu :focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
 .protected-community {
   overflow-wrap: anywhere;
   color: var(--muted);

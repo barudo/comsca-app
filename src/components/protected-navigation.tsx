@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { Brand } from "@/components/brand";
 import { useCommunity } from "@/components/community-provider";
@@ -16,7 +17,18 @@ const links = [
 export function ProtectedNavigation() {
   const pathname = usePathname();
   const { subdomain } = useCommunity();
-  const { user } = useAuth();
+  const { user, setSession } = useAuth();
+  const accountMenu = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    function closeOnOutsideClick(event: PointerEvent) {
+      if (accountMenu.current && !accountMenu.current.contains(event.target as Node)) {
+        accountMenu.current.open = false;
+      }
+    }
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
+  }, []);
 
   return (
     <header className="protected-header">
@@ -34,7 +46,27 @@ export function ProtectedNavigation() {
         </nav>
         <div className="protected-account">
           {subdomain && <span className="protected-community">{subdomain}</span>}
-          {user && <span className="protected-user">{user.name}</span>}
+          {user && (
+            <details
+              className="protected-account-menu"
+              ref={accountMenu}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.currentTarget.open = false;
+                  event.currentTarget.querySelector("summary")?.focus();
+                }
+              }}
+            >
+              <summary className="protected-user">{user.name}<span aria-hidden="true">▾</span></summary>
+              <nav className="protected-account-dropdown" aria-label="Account">
+                <Link href="/profile" onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Profile</Link>
+                <button type="button" onClick={() => setSession(null)}>Logout</button>
+              </nav>
+            </details>
+          )}
         </div>
       </div>
     </header>
