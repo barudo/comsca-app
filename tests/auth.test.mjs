@@ -14,6 +14,20 @@ test("current user uses an authenticated uncached GET and reads the user's name"
   assert.deepEqual(await fetchCurrentUser("access", "cebu"), { name: "Maria Santos", role: "OWNER" });
 });
 
+test("API owner and admin profiles enable both navigation destinations", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch");
+  for (const role of ["OWNER", "ADMIN", "owner", " admin "]) {
+    fetch.mock.mockImplementation(async () => Response.json({
+      success: true,
+      user: { first_name: " Maria ", family_name: " Santos ", role },
+    }));
+    const user = await fetchCurrentUser("access", "cebu");
+    assert.equal(user.name, "Maria Santos");
+    assert.equal(canViewMembers(user), true);
+    assert.equal(canManageCycles(user), true);
+  }
+});
+
 test("only owners, admins, and treasurers can view members", () => {
   for (const role of ["OWNER", "ADMIN", "TREASURER"]) {
     assert.equal(canViewMembers({ name: "Maria", role }), true);

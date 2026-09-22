@@ -1,21 +1,59 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useCommunity } from "@/components/community-provider";
-import { fetchCurrentUser, type Session, type User } from "@/lib/auth";
+import { fetchCurrentUser, readSession, restoreSession, sessionStorageKey, type Session, type User } from "@/lib/auth";
 
 const AuthContext = createContext<{
   session: Session | null;
   user: User | null;
+  ready: boolean;
+  profileLoading: boolean;
   setSession: (session: Session | null) => void;
 } | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { subdomain } = useCommunity();
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<{ accessToken: string; groupSlug: string; user: User } | null>(null);
+  const [stored, setStored] = useState<{ groupSlug: string | null; session: Session | null } | null>(null);
+  const ready = stored !== null && stored.groupSlug === subdomain;
+  const session = ready ? stored.session : null;
+  const [profile, setProfile] = useState<{ accessToken: string; groupSlug: string; user: User | null } | null>(null);
   const accessToken = session?.access_token;
   const user = accessToken && profile?.accessToken === accessToken && profile.groupSlug === subdomain ? profile.user : null;
+  const profileLoading = !!accessToken && !!subdomain && (profile?.accessToken !== accessToken || profile?.groupSlug !== subdomain);
+
+  const setSession = useCallback((value: Session | null) => {
+    const session = value && subdomain ? readSession({ session: value }) : null;
+    if (subdomain) {
+      try {
+        if (session) window.localStorage.setItem(sessionStorageKey(subdomain), JSON.stringify(session));
+        else window.localStorage.removeItem(sessionStorageKey(subdomain));
+      } catch { /* Keep the current login usable if browser storage is blocked. */ }
+    }
+    setStored({ groupSlug: subdomain, session });
+    setProfile(null);
+  }, [subdomain]);
+
+  useEffect(() => {
+    function restore() {
+      let session: Session | null = null;
+      try { session = subdomain ? restoreSession(window.localStorage, subdomain) : null; } catch { /* Storage unavailable. */ }
+      setStored({ groupSlug: subdomain, session });
+    }
+    function syncStorage(event: StorageEvent) {
+      if (event.key === null || (subdomain && event.key === sessionStorageKey(subdomain))) restore();
+    }
+    function onPageShow(event: PageTransitionEvent) {
+      if (event.persisted) restore();
+    }
+    restore();
+    window.addEventListener("storage", syncStorage);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      window.removeEventListener("storage", syncStorage);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [subdomain]);
 
   useEffect(() => {
     if (!accessToken || !subdomain) return;
@@ -25,16 +63,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!controller.signal.aborted) setProfile({ accessToken, groupSlug: subdomain, user });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setProfile(null);
+        if (!controller.signal.aborted) setProfile({ accessToken, groupSlug: subdomain, user: null });
       });
     return () => controller.abort();
   }, [accessToken, subdomain]);
   useEffect(() => {
     if (!session?.expires_at) return;
-    const timer = setTimeout(() => setSession(null), Math.max(0, session.expires_at * 1000 - Date.now()));
-    return () => clearTimeout(timer);
-  }, [session]);
-  return <AuthContext.Provider value={{ session, setSession, user }}>{children}</AuthContext.Provider>;
+    let timer: ReturnType<typeof setTimeout>;
+    const expiresAt = session.expires_at;
+    function checkExpiry() {
+      clearTimeout(timer);
+      const remaining = expiresAt * 1000 - Date.now();
+      if (remaining <= 0) setSession(null);
+      else timer = setTimeout(checkExpiry, Math.min(remaining, 2147483647));
+    }
+    checkExpiry();
+    window.addEventListener("focus", checkExpiry);
+    return () => { clearTimeout(timer); window.removeEventListener("focus", checkExpiry); };
+  }, [session, setSession]);
+  return <AuthContext.Provider value={{ session, setSession, user, ready, profileLoading }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

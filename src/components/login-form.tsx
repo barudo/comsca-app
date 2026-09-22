@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { useRouter } from "next/navigation";
 import { useCommunity } from "@/components/community-provider";
@@ -10,12 +10,16 @@ import { authRequest, readSession } from "@/lib/auth";
 export function LoginForm() {
   const router = useRouter();
   const { subdomain } = useCommunity();
-  const { setSession } = useAuth();
+  const { setSession, session, ready } = useAuth();
   const [pending, setPending] = useState(false);
   const [otpPhone, setOtpPhone] = useState("");
   const [useOtp, setUseOtp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (ready && session) router.replace("/dashboard");
+  }, [ready, session, router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,6 +47,8 @@ export function LoginForm() {
       setPending(false);
     }
   }
+
+  if (!ready || session) return <p role="status">{session ? "Opening your dashboard…" : "Restoring your session…"}</p>;
 
   return (
     <form className="login-form" onSubmit={handleSubmit} method="post" aria-busy={pending}>

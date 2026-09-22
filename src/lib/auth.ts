@@ -27,12 +27,18 @@ export async function fetchCurrentUser(accessToken: string, groupSlug: string, s
     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
   });
   const body = await response.json();
-  if (!response.ok || body?.success !== true || typeof body.user?.name !== "string" || !body.user.name.trim()) {
+  const profile = body?.user;
+  const name = typeof profile?.name === "string" && profile.name.trim()
+    ? profile.name.trim()
+    : [profile?.first_name, profile?.family_name]
+      .filter((part): part is string => typeof part === "string")
+      .map((part) => part.trim()).filter(Boolean).join(" ");
+  if (!response.ok || body?.success !== true || !name) {
     throw new Error("Unable to load your profile.");
   }
   return {
-    name: body.user.name.trim(),
-    role: typeof body.user.role === "string" ? body.user.role : null,
+    name,
+    role: typeof profile.role === "string" ? profile.role.trim().toUpperCase() : null,
   };
 }
 
@@ -68,8 +74,32 @@ export function readSession(body: { session?: Session }): Session {
   }
   const expiresAt = typeof session.expires_at === "number" ? session.expires_at :
     typeof session.expires_in === "number" ? Date.now() / 1000 + session.expires_in : undefined;
+  if ((session.expires_at !== undefined && (typeof session.expires_at !== "number" || !Number.isFinite(session.expires_at))) ||
+    (session.expires_in !== undefined && (typeof session.expires_in !== "number" || !Number.isFinite(session.expires_in)))) {
+    throw new Error("Invalid session expiry. Please sign in again.");
+  }
   if (expiresAt !== undefined && expiresAt <= Date.now() / 1000) {
     throw new Error("Your session has expired. Please sign in again.");
   }
-  return { ...session, expires_at: expiresAt };
+  return { access_token: session.access_token, refresh_token: session.refresh_token, expires_at: expiresAt };
+}
+
+export function sessionStorageKey(groupSlug: string): string {
+  return `comsca:session:${groupSlug}`;
+}
+
+export function restoreSession(storage: Pick<Storage, "getItem" | "removeItem">, groupSlug: string): Session | null {
+  if (!groupSlug) return null;
+  const key = sessionStorageKey(groupSlug);
+  try {
+    const value = storage.getItem(key);
+    if (!value) return null;
+    const stored = JSON.parse(value);
+    // Relative expiry must never be restarted when restoring a session.
+    if (stored?.expires_in !== undefined && stored?.expires_at === undefined) throw new Error("Missing absolute expiry");
+    return readSession({ session: stored });
+  } catch {
+    try { storage.removeItem(key); } catch { /* Storage may be unavailable. */ }
+    return null;
+  }
 }
