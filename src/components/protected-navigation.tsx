@@ -5,11 +5,12 @@ import { usePathname } from "next/navigation";
 import { Brand } from "@/components/brand";
 import { useCommunity } from "@/components/community-provider";
 import { useAuth } from "@/components/auth-provider";
-import { canViewMembers } from "@/lib/auth";
+import { canManageCycles, canViewMembers } from "@/lib/auth";
 
 const links = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/members", label: "Members" },
+  { href: "/cycles", label: "Cycles" },
 ];
 
 export function ProtectedNavigation() {
@@ -22,7 +23,10 @@ export function ProtectedNavigation() {
       <div className="protected-nav">
         <Brand href="/dashboard" />
         <nav aria-label="Main navigation" className="protected-links">
-          {links.filter(({ href }) => href !== "/members" || canViewMembers(user)).map(({ href, label }) => (
+          {links.filter(({ href }) =>
+            (href !== "/members" || canViewMembers(user)) &&
+            (href !== "/cycles" || canManageCycles(user))
+          ).map(({ href, label }) => (
             <Link key={href} href={href} aria-current={pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined}>
               {label}
             </Link>

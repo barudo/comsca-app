@@ -12,6 +12,10 @@ export function canViewMembers(user: User | null): boolean {
   return user?.role === "OWNER" || user?.role === "ADMIN" || user?.role === "TREASURER";
 }
 
+export function canManageCycles(user: User | null): boolean {
+  return user?.role === "OWNER" || user?.role === "ADMIN";
+}
+
 export async function fetchCurrentUser(accessToken: string, groupSlug: string, signal?: AbortSignal): Promise<User> {
   if (!groupSlug.trim()) throw new Error("Please open your community’s URL to sign in.");
   const base = (process.env.NEXT_PUBLIC_API_URL ||

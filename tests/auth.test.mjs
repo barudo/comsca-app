@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { authRequest, canViewMembers, fetchCurrentUser, readSession } from "../src/lib/auth.ts";
+import { authRequest, canManageCycles, canViewMembers, fetchCurrentUser, readSession } from "../src/lib/auth.ts";
 
 test("current user uses an authenticated uncached GET and reads the user's name", async (t) => {
   t.mock.method(globalThis, "fetch", async (url, options) => {
@@ -22,6 +22,16 @@ test("only owners, admins, and treasurers can view members", () => {
     assert.equal(canViewMembers({ name: "Maria", role }), false);
   }
   assert.equal(canViewMembers(null), false);
+});
+
+test("only owners and admins can manage cycles", () => {
+  for (const role of ["OWNER", "ADMIN"]) {
+    assert.equal(canManageCycles({ name: "Maria", role }), true);
+  }
+  for (const role of ["TREASURER", "MEMBER", "SECRETARY", "owner", "", "UNKNOWN", null]) {
+    assert.equal(canManageCycles({ name: "Maria", role }), false);
+  }
+  assert.equal(canManageCycles(null), false);
 });
 
 test("missing or malformed profile roles never grant members access", async (t) => {
