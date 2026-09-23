@@ -675,3 +675,22 @@ h1 > span {
 .brand-mark {
   flex-shrink: 0;
 }
+
+.protected-administration-menu summary {
+  padding: 11px 16px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+.protected-administration-menu summary[data-active] {
+  background: var(--pale);
+  color: var(--blue);
+}
+.protected-administration-menu .protected-account-dropdown {
+  left: 0;
+  right: auto;
+}
+.protected-administration-menu a[aria-current="page"] {
+  background: var(--pale);
+  color: var(--blue);
+}

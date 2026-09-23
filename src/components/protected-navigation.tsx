@@ -8,22 +8,26 @@ import { useCommunity } from "@/components/community-provider";
 import { useAuth } from "@/components/auth-provider";
 import { canManageCycles, canViewMembers } from "@/lib/auth";
 
-const links = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/members", label: "Members" },
-  { href: "/cycles", label: "Cycles" },
+const administrationLinks = [
+  { href: "/cycles", label: "Cycle", canView: canManageCycles },
+  { href: "/groups", label: "Members", canView: canViewMembers },
 ];
 
 export function ProtectedNavigation() {
   const pathname = usePathname();
   const { subdomain } = useCommunity();
   const { user, setSession } = useAuth();
+  const visibleAdministrationLinks = administrationLinks.filter(({ canView }) => canView(user));
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`) ||
+    (href === "/groups" && (pathname === "/members" || pathname.startsWith("/members/")));
+  const administrationMenu = useRef<HTMLDetailsElement>(null);
+  const administrationActive = visibleAdministrationLinks.some(({ href }) => isActive(href));
   const accountMenu = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
     function closeOnOutsideClick(event: PointerEvent) {
-      if (accountMenu.current && !accountMenu.current.contains(event.target as Node)) {
-        accountMenu.current.open = false;
+      for (const menu of [accountMenu.current, administrationMenu.current]) {
+        if (menu && !menu.contains(event.target as Node)) menu.open = false;
       }
     }
     document.addEventListener("pointerdown", closeOnOutsideClick);
@@ -35,14 +39,42 @@ export function ProtectedNavigation() {
       <div className="protected-nav">
         <Brand href="/dashboard" />
         <nav aria-label="Main navigation" className="protected-links">
-          {links.filter(({ href }) =>
-            (href !== "/members" || canViewMembers(user)) &&
-            (href !== "/cycles" || canManageCycles(user))
-          ).map(({ href, label }) => (
-            <Link key={href} href={href} aria-current={pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined}>
-              {label}
-            </Link>
-          ))}
+          <Link href="/dashboard" aria-current={pathname === "/dashboard" ? "page" : undefined}>Dashboard</Link>
+          {visibleAdministrationLinks.length > 0 && (
+            <details
+              key={pathname}
+              className="protected-account-menu protected-administration-menu"
+              ref={administrationMenu}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.currentTarget.open = false;
+                  event.currentTarget.querySelector("summary")?.focus();
+                }
+              }}
+            >
+              <summary data-active={administrationActive || undefined}>Administration<span aria-hidden="true">▾</span></summary>
+              <div className="protected-account-dropdown">
+                {visibleAdministrationLinks.map(({ href, label }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    aria-current={isActive(href) ? "page" : undefined}
+                    onClick={() => {
+                      if (administrationMenu.current) {
+                        administrationMenu.current.open = false;
+                        if (pathname === href) administrationMenu.current.querySelector("summary")?.focus();
+                      }
+                    }}
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </details>
+          )}
         </nav>
         <div className="protected-account">
           {subdomain && <span className="protected-community">{subdomain}</span>}
