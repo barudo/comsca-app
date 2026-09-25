@@ -99,7 +99,8 @@ export function DraftCyclePanel({ onClose, onCreate, returnFocus }: {
         </div>
         <div className="field">
           <label htmlFor="cycle-required-monthly-contribution">Required monthly contribution</label>
-          <input id="cycle-required-monthly-contribution" name="required_monthly_contribution" type="number" min="0" step="0.01" defaultValue="0" required />
+          <input id="cycle-required-monthly-contribution" name="required_monthly_contribution" type="number" min="0" step="0.01" defaultValue="0" aria-describedby="required-monthly-contribution-hint" required />
+          <p id="required-monthly-contribution-hint" className="cycle-field-hint">Monthly amount each member must contribute toward shared group funds and expenses. This is separate from member savings.</p>
         </div>
         <div className="cycle-drawer-footer">
           <button className="cycle-cancel" type="button" onClick={onClose}>Cancel</button>
