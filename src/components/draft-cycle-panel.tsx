@@ -11,6 +11,10 @@ export function DraftCyclePanel({ onClose, onCreate, returnFocus }: {
   const dialog = useRef<HTMLDialogElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
   const [interestType, setInterestType] = useState<InterestType>("compounded");
+  const [defaultName] = useState(() => {
+    const currentYear = new Date().getFullYear();
+    return `${currentYear} to ${currentYear + 1}`;
+  });
 
   useEffect(() => {
     const panel = dialog.current;
@@ -54,7 +58,7 @@ export function DraftCyclePanel({ onClose, onCreate, returnFocus }: {
       <form className="cycle-draft-form" onSubmit={handleSubmit}>
         <div className="field">
           <label htmlFor="cycle-name">Name</label>
-          <input ref={nameInput} id="cycle-name" name="name" placeholder="e.g. Community savings 2026" required maxLength={120} pattern=".*\S.*" />
+          <input ref={nameInput} id="cycle-name" name="name" defaultValue={defaultName} required maxLength={120} pattern=".*\S.*" />
         </div>
         <div className="field">
           <label htmlFor="cycle-description">Description <span className="cycle-optional">(optional)</span></label>
