@@ -25,6 +25,8 @@ export type DraftDetails = {
   startingSubscription: string;
   maximumMonthlyShares: number;
   costPerShare: string;
+  absencePenalty: string;
+  requiredMonthlyContribution: string;
 };
 
 export type DisplayCycle = Cycle & { details?: DraftDetails };

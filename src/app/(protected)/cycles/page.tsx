@@ -67,6 +67,8 @@ function CyclesWorkspace() {
               <div><dt>Starting subscription</dt><dd>{Number(details.startingSubscription).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd></div>
               <div><dt>Maximum monthly buyable shares</dt><dd>{details.maximumMonthlyShares}</dd></div>
               <div><dt>Cost per share</dt><dd>{Number(details.costPerShare).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd></div>
+              <div><dt>Absence penalty</dt><dd>{Number(details.absencePenalty).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd></div>
+              <div><dt>Required monthly contribution</dt><dd>{Number(details.requiredMonthlyContribution).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd></div>
             </dl>
           </>
         )}
