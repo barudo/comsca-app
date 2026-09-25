@@ -53,11 +53,7 @@ export function DraftCyclePanel({ onClose, onCreate, returnFocus, initialDetails
   }
 
   return (
-    <dialog ref={dialog} className="cycle-drawer" aria-labelledby="draft-cycle-title" aria-describedby="draft-cycle-description" onCancel={(event) => { event.preventDefault(); if (!saving) onClose(); }} onClick={(event) => {
-      if (saving || event.target !== event.currentTarget) return;
-      const bounds = event.currentTarget.getBoundingClientRect();
-      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onClose();
-    }}>
+    <dialog ref={dialog} className="cycle-drawer" aria-labelledby="draft-cycle-title" aria-describedby="draft-cycle-description" onCancel={(event) => { event.preventDefault(); if (!saving) onClose(); }}>
       <div className="cycle-drawer-header">
         <div><span className="eyebrow">CYCLE SETUP</span><h2 id="draft-cycle-title">{initialDetails ? "Edit Draft Cycle" : "Add a Draft Cycle"}</h2></div>
         <button type="button" className="cycle-close" aria-label="Close draft cycle form" disabled={saving} onClick={onClose}>×</button>
