@@ -29,7 +29,7 @@ export type DraftDetails = {
   requiredMonthlyContribution: string;
 };
 
-export type DisplayCycle = Cycle & { details?: DraftDetails };
+export type DisplayCycle = Cycle;
 
 // A distributing or active cycle takes precedence over any future drafts.
 export function getCurrentCycle(cycles: DisplayCycle[]) {

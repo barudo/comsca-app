@@ -1,4 +1,6 @@
-export type Cycle = { id: string | number; status: string };
+import type { DraftDetails } from "./cycle-state";
+
+export type Cycle = { id: string | number; status: string; details?: Partial<DraftDetails> };
 
 export type CreateCycleInput = {
   interest_rate: string;
@@ -12,16 +14,16 @@ export function canAddCycle(cycles: Cycle[]): boolean {
   return cycles.every((cycle) => cycle.status.trim().toUpperCase() !== "ACTIVE");
 }
 
-async function cycleRequest(accessToken: string, groupSlug: string, options: RequestInit) {
+async function cycleRequest(accessToken: string, groupSlug: string, options: RequestInit, id?: Cycle["id"]) {
   if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
   const base = (process.env.NEXT_PUBLIC_API_URL ||
     "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
-  const response = await fetch(`${base}/cycles`, {
+  const response = await fetch(`${base}/cycles${id === undefined ? "" : `/${encodeURIComponent(String(id))}`}`, {
     ...options,
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "x-group-slug": groupSlug,
-      ...(options.method === "POST" ? { "Content-Type": "application/json" } : {}),
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
     },
     cache: "no-store",
     signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
@@ -33,6 +35,33 @@ async function cycleRequest(accessToken: string, groupSlug: string, options: Req
   return body;
 }
 
+export function draftCyclePayload(details: DraftDetails) {
+  return {
+    name: details.name,
+    description: details.description,
+    interest_rate: details.interestRate,
+    interest_period: "MONTHLY",
+    interest_method: { compounded: "COMPOUND", simple: "SIMPLE", reducing: "REDUCING_BALANCE" }[details.interestType],
+    starting_subscription: details.startingSubscription,
+    maximum_monthly_shares: details.maximumMonthlyShares,
+    cost_per_share: details.costPerShare,
+    absence_penalty: details.absencePenalty,
+    required_monthly_contribution: details.requiredMonthlyContribution,
+  };
+}
+
+export async function saveDraftCycle(accessToken: string, groupSlug: string, id: Cycle["id"], details: DraftDetails) {
+  return cycleRequest(accessToken, groupSlug, { method: "PUT", body: JSON.stringify(draftCyclePayload(details)) }, id);
+}
+
+export async function createDraftCycle(accessToken: string, groupSlug: string, details: DraftDetails) {
+  return cycleRequest(accessToken, groupSlug, { method: "POST", body: JSON.stringify({ ...draftCyclePayload(details), status: "draft" }) });
+}
+
+export async function activateCycle(accessToken: string, groupSlug: string, id: Cycle["id"]) {
+  return cycleRequest(accessToken, groupSlug, { method: "PUT", body: JSON.stringify({ status: "active" }) }, id);
+}
+
 export async function fetchCycles(accessToken: string, groupSlug: string, signal?: AbortSignal): Promise<Cycle[]> {
   const body = await cycleRequest(accessToken, groupSlug, { method: "GET", signal });
   if (!Array.isArray(body.cycles)) throw new Error("Unable to read cycles.");
@@ -42,7 +71,33 @@ export async function fetchCycles(accessToken: string, groupSlug: string, signal
       !("status" in cycle) || typeof cycle.status !== "string" || !cycle.status.trim()) {
       throw new Error("Unable to read cycles.");
     }
-    return { id: cycle.id, status: cycle.status };
+    const fields = cycle as Record<string, unknown>;
+    const details: Partial<DraftDetails> = {};
+    for (const key of ["name", "description"] as const) {
+      if (typeof fields[key] === "string") details[key] = fields[key];
+    }
+    const amounts = {
+      interest_rate: "interestRate",
+      starting_subscription: "startingSubscription",
+      cost_per_share: "costPerShare",
+      absence_penalty: "absencePenalty",
+      required_monthly_contribution: "requiredMonthlyContribution",
+    } as const;
+    for (const [source, target] of Object.entries(amounts)) {
+      const value = fields[source];
+      if ((typeof value === "string" && value.trim() !== "" || typeof value === "number") && Number.isFinite(Number(value))) {
+        details[target] = String(value);
+      }
+    }
+    const shares = fields.maximum_monthly_shares;
+    if ((typeof shares === "number" || typeof shares === "string" && shares.trim() !== "") && Number.isSafeInteger(Number(shares))) {
+      details.maximumMonthlyShares = Number(shares);
+    }
+    const method = String(fields.interest_method ?? fields.interest_type ?? "").toUpperCase();
+    if (method === "COMPOUND" || method === "COMPOUNDED") details.interestType = "compounded";
+    if (method === "SIMPLE") details.interestType = "simple";
+    if (method === "REDUCING" || method === "REDUCING_BALANCE") details.interestType = "reducing";
+    return { id: cycle.id, status: cycle.status, ...(Object.keys(details).length ? { details } : {}) };
   });
 }
 
