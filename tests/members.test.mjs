@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createMember, fetchActiveCycleMembers, fetchMembers } from "../src/lib/members.ts";
+import { updateMember, createMember, fetchActiveCycleMembers, fetchMembers } from "../src/lib/members.ts";
 
 test("business lists only members enrolled in the verified active cycle", async (t) => {
   t.mock.method(globalThis, "fetch", async (url, options) => {
@@ -13,7 +13,7 @@ test("business lists only members enrolled in the verified active cycle", async 
     ] });
   });
   assert.deepEqual(await fetchActiveCycleMembers("access", "cebu", 7), [
-    { id: 1, name: "Maria Santos", email: null, phone: null },
+    { id: 1, first_name: "Maria", family_name: "Santos", address: "", name: "Maria Santos", email: null, phone: null },
   ]);
 });
 
@@ -49,8 +49,8 @@ test("members requests are authenticated, community scoped, and uncached", async
     ] });
   });
   assert.deepEqual(await fetchMembers("access", "cebu"), [
-    { id: 1, name: "Maria Santos", email: "maria@example.com", phone: "09171234567" },
-    { id: 2, name: "Juan", email: null, phone: null },
+    { id: 1, first_name: " Maria ", family_name: " Santos ", address: "", name: "Maria Santos", email: "maria@example.com", phone: "09171234567" },
+    { id: 2, first_name: "Juan", family_name: "", address: "", name: "Juan", email: null, phone: null },
   ]);
 });
 
@@ -66,7 +66,7 @@ test("members accepts the groups/users response with split names and nullable co
     }],
   }));
   assert.deepEqual(await fetchMembers("access", "cebu"), [{
-    id: "6", name: "Marie Ronaldine Villocido", email: null, phone: "+639499981817",
+    id: "6", first_name: "Marie Ronaldine", family_name: "Villocido", address: "", name: "Marie Ronaldine Villocido", email: null, phone: "+639499981817",
   }]);
 });
 
@@ -106,4 +106,22 @@ test("adding a member maps form names to the authenticated group API", async (t)
 test("adding a member surfaces backend failures", async (t) => {
   t.mock.method(globalThis, "fetch", async () => Response.json({ success: false, error: "Invalid phone" }, { status: 400 }));
   await assert.rejects(createMember("access", "cebu", { first_name: "Ana", family_name: "Cruz", phone: "invalid", address: "" }), /Invalid phone/);
+});
+
+
+test("member edits use PUT on the selected member and preserve multiline addresses", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.ok(url.endsWith("/groups/users/42"));
+    assert.equal(options.method, "PUT");
+    assert.equal(options.headers.Authorization, "Bearer access");
+    assert.equal(options.headers["x-group-slug"], "cebu");
+    assert.deepEqual(JSON.parse(options.body), { firstname: "Ana Marie", lastname: "Cruz", phone: "+639171234567", address: "Main Street\nCebu" });
+    return Response.json({ success: true });
+  });
+  await updateMember("access", "cebu", 42, { first_name: "Ana Marie", family_name: "Cruz", phone: "+639171234567", address: "Main Street\nCebu" });
+});
+
+test("failed member edits surface the API error", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({ success: false, error: "Member not found" }, { status: 404 }));
+  await assert.rejects(updateMember("access", "cebu", 42, { first_name: "Ana", family_name: "Cruz", phone: "", address: "" }), /Member not found/);
 });

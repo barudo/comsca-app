@@ -1,5 +1,8 @@
 export type Member = {
   id?: string | number;
+  first_name: string;
+  family_name: string;
+  address: string;
   name: string;
   email: string | null;
   phone: string | null;
@@ -7,20 +10,28 @@ export type Member = {
 
 export type NewMember = { first_name: string; family_name: string; phone: string; address: string };
 
-export async function createMember(accessToken: string, groupSlug: string, member: NewMember) {
+async function saveMember(accessToken: string, groupSlug: string, member: NewMember, id?: string | number) {
   if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
   const base = (process.env.NEXT_PUBLIC_API_URL ||
     "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
-  const response = await fetch(`${base}/groups/users`, {
-    method: "POST",
+  const response = await fetch(`${base}/groups/users${id === undefined ? "" : `/${encodeURIComponent(String(id))}`}`, {
+    method: id === undefined ? "POST" : "PUT",
     headers: { Authorization: `Bearer ${accessToken}`, "x-group-slug": groupSlug, "Content-Type": "application/json" },
     body: JSON.stringify({ firstname: member.first_name.trim(), lastname: member.family_name.trim(), phone: member.phone || null, address: member.address.trim() || null }),
     signal: AbortSignal.timeout(15000),
   });
   const body = await response.json();
   if (!response.ok || body?.success !== true) {
-    throw new Error(typeof body?.error === "string" ? body.error : "Unable to add member. Please try again.");
+    throw new Error(typeof body?.error === "string" ? body.error : "Unable to save member. Please try again.");
   }
+}
+
+export async function createMember(accessToken: string, groupSlug: string, member: NewMember) {
+  return saveMember(accessToken, groupSlug, member);
+}
+
+export async function updateMember(accessToken: string, groupSlug: string, id: string | number, member: NewMember) {
+  return saveMember(accessToken, groupSlug, member, id);
 }
 
 async function requestMembers(accessToken: string, groupSlug: string, signal?: AbortSignal) {
@@ -49,6 +60,9 @@ function parseMembers(users: unknown[]): Member[] {
     }
     return {
       id: "id" in user && (typeof user.id === "string" || typeof user.id === "number") ? user.id : undefined,
+      first_name: user.first_name,
+      family_name: user.family_name ?? "",
+      address: "address" in user && typeof user.address === "string" ? user.address : "",
       name: [user.first_name.trim(), user.family_name?.trim()].filter(Boolean).join(" "),
       email: "email" in user && typeof user.email === "string" ? user.email : null,
       phone: "phone" in user && typeof user.phone === "string" ? user.phone : null,
