@@ -636,6 +636,43 @@ h1 > span {
 .members-table tbody th {
   font-weight: 500;
 }
+.business-cycle-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 28px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.business-cycle-summary h2 { margin: 8px 0 0; overflow-wrap: anywhere; }
+.business-cycle-summary > span, .business-member-email { color: var(--muted); font-size: 13px; }
+.business-member-email { display: block; margin-top: 6px; }
+.business-selected-member { margin-top: 28px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--pale); }
+.business-selected-member h3 { margin: 8px 0 0; font-size: 20px; overflow-wrap: anywhere; }
+.business-loan-summary { margin: 0 0 24px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; }
+.business-loan-summary dt { color: var(--muted); font-size: 14px; }
+.business-loan-summary dd { margin: 12px 0 0; font-size: 28px; font-weight: 700; }
+.business-submit-notice { color: var(--blue); line-height: 1.7; }
+.business-submit-notice:empty { display: none; }
+.business-empty { padding: 24px; margin-top: 24px; border: 1px solid var(--line); border-radius: 12px; background: #fff; line-height: 1.7; }
+.business-member-actions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 170px; }
+.business-member-actions button {
+  padding: 10px 14px;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.business-member-actions button:hover { background: var(--pale); border-color: var(--blue); }
+.business-table th:first-child, .business-table td:first-child { min-width: 48px; width: 48px; }
 .protected-shell {
   min-height: 100svh;
   background: var(--pale);

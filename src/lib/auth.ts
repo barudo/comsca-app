@@ -12,6 +12,10 @@ export function canViewMembers(user: User | null): boolean {
   return user?.role === "OWNER" || user?.role === "ADMIN" || user?.role === "TREASURER";
 }
 
+export function canViewBusiness(user: User | null): boolean {
+  return user?.role === "OWNER" || user?.role === "ADMIN" || user?.role === "TREASURER";
+}
+
 export function canManageCycles(user: User | null): boolean {
   return user?.role === "OWNER" || user?.role === "ADMIN";
 }

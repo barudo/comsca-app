@@ -5,7 +5,7 @@ export type Member = {
   phone: string | null;
 };
 
-export async function fetchMembers(accessToken: string, groupSlug: string, signal?: AbortSignal): Promise<Member[]> {
+async function requestMembers(accessToken: string, groupSlug: string, signal?: AbortSignal) {
   if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
   const base = (process.env.NEXT_PUBLIC_API_URL ||
     "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
@@ -19,7 +19,11 @@ export async function fetchMembers(accessToken: string, groupSlug: string, signa
   if (!response.ok || body?.success !== true || !Array.isArray(body.users)) {
     throw new Error("Unable to load members. Please try again.");
   }
-  return body.users.map((user: unknown) => {
+  return body;
+}
+
+function parseMembers(users: unknown[]): Member[] {
+  return users.map((user: unknown) => {
     if (!user || typeof user !== "object" ||
       !("first_name" in user) || typeof user.first_name !== "string" ||
       !("family_name" in user) || (user.family_name !== null && typeof user.family_name !== "string")) {
@@ -32,4 +36,24 @@ export async function fetchMembers(accessToken: string, groupSlug: string, signa
       phone: "phone" in user && typeof user.phone === "string" ? user.phone : null,
     };
   });
+}
+
+export async function fetchMembers(accessToken: string, groupSlug: string, signal?: AbortSignal): Promise<Member[]> {
+  const body = await requestMembers(accessToken, groupSlug, signal);
+  return parseMembers(body.users);
+}
+
+export async function fetchActiveCycleMembers(accessToken: string, groupSlug: string, cycleId: string | number, signal?: AbortSignal): Promise<Member[]> {
+  const body = await requestMembers(accessToken, groupSlug, signal);
+  if ((typeof body.current_cycle_id !== "string" && typeof body.current_cycle_id !== "number") ||
+    String(body.current_cycle_id) !== String(cycleId)) {
+    throw new Error("The current cycle has changed or could not be verified. Please try again.");
+  }
+  // Missing membership flags must not silently include all community members.
+  const users = body.users as unknown[];
+  if (users.some((user) => !user || typeof user !== "object" ||
+    !("is_current_cycle_member" in user) || typeof user.is_current_cycle_member !== "boolean")) {
+    throw new Error("Unable to verify active-cycle membership. Please try again.");
+  }
+  return parseMembers(users.filter((user) => (user as { is_current_cycle_member: boolean }).is_current_cycle_member));
 }

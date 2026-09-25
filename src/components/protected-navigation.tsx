@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Brand } from "@/components/brand";
 import { useCommunity } from "@/components/community-provider";
 import { useAuth } from "@/components/auth-provider";
-import { canManageCycles, canViewMembers } from "@/lib/auth";
+import { canManageCycles, canViewBusiness, canViewMembers } from "@/lib/auth";
 
 const administrationLinks = [
   { href: "/cycles", label: "Cycle", canView: canManageCycles },
@@ -40,6 +40,7 @@ export function ProtectedNavigation() {
         <Brand href="/dashboard" />
         <nav aria-label="Main navigation" className="protected-links">
           <Link href="/dashboard" aria-current={pathname === "/dashboard" ? "page" : undefined}>Dashboard</Link>
+          {canViewBusiness(user) && <Link href="/business" aria-current={isActive("/business") ? "page" : undefined}>Business</Link>}
           {visibleAdministrationLinks.length > 0 && (
             <details
               key={pathname}

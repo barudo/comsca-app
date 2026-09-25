@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { authRequest, canManageCycles, canViewMembers, fetchCurrentUser, readSession } from "../src/lib/auth.ts";
+import { authRequest, canManageCycles, canViewBusiness, canViewMembers, fetchCurrentUser, readSession } from "../src/lib/auth.ts";
+
+test("business access is limited to owners, admins, and treasurers", () => {
+  for (const role of ["OWNER", "ADMIN", "TREASURER"]) {
+    assert.equal(canViewBusiness({ name: "Maria", role }), true);
+  }
+  for (const role of ["MEMBER", "SECRETARY", "UNKNOWN", "", null]) {
+    assert.equal(canViewBusiness({ name: "Maria", role }), false);
+  }
+  assert.equal(canViewBusiness(null), false);
+});
 
 test("current user uses an authenticated uncached GET and reads the user's name", async (t) => {
   t.mock.method(globalThis, "fetch", async (url, options) => {
