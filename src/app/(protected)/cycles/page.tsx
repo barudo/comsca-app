@@ -161,8 +161,10 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
             </dl>
           </>
         )}
-        {current?.status === "draft" && <button ref={editButton} type="button" disabled={saving} className="submit-button cycle-primary-action" onClick={() => { setSaveError(""); setShowForm(true); }}>Edit Draft Cycle</button>}
-        {content.action && <button ref={actionButton} type="button" disabled={saving} className="submit-button cycle-primary-action" onClick={handleAction}>{saving ? "Updating…" : content.action}</button>}
+        {content.action && <div className="cycle-actions">
+          {current?.status === "draft" && <button ref={editButton} type="button" disabled={saving} className="submit-button cycle-primary-action" onClick={() => { setSaveError(""); setShowForm(true); }}>Edit Draft Cycle</button>}
+          <button ref={actionButton} type="button" disabled={saving} className="submit-button cycle-primary-action" onClick={handleAction}>{saving ? "Updating…" : content.action}</button>
+        </div>}
       </section>
       {showForm && <DraftCyclePanel onClose={() => setShowForm(false)} onCreate={addDraft} onSave={persistDraft} saving={saving} saveError={saveError} initialDetails={current?.status === "draft" ? details ?? {} : undefined} returnFocus={current?.status === "draft" ? editButton : actionButton} />}
     </>

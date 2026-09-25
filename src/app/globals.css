@@ -529,7 +529,8 @@ h1 > span {
 .cycle-name { font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
 .cycle-status-description { color: var(--muted); line-height: 1.7; max-width: 650px; }
 .cycle-description { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
-.cycle-primary-action { width: auto; max-width: 100%; margin-top: 20px; padding-inline: 24px; }
+.cycle-actions { display: flex; gap: 12px; margin-top: 20px; }
+.cycle-primary-action { width: auto; min-width: 0; max-width: 100%; margin-top: 0; padding-inline: 24px; }
 .cycle-details {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -597,7 +598,7 @@ h1 > span {
 @keyframes cycle-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
 @media (max-width: 600px) {
   .cycle-status-card, .cycle-drawer { padding: 24px 20px; }
-  .cycle-primary-action { width: 100%; }
+  .cycle-primary-action { flex: 1; padding-inline: 12px; }
   .cycle-form-row { grid-template-columns: 1fr; gap: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
