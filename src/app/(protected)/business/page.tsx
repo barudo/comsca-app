@@ -19,10 +19,23 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const dialog = useRef<HTMLDialogElement>(null);
   const firstInput = useRef<HTMLInputElement>(null);
   const [shareCount, setShareCount] = useState("1");
+  const [sharesAmount, setSharesAmount] = useState("100.00");
   const [amount, setAmount] = useState("");
   const [notice, setNotice] = useState("");
-  const sharesAmount = shareCount !== "" && Number.isSafeInteger(Number(shareCount)) && Number(shareCount) > 0
-    ? (Number(shareCount) * pricePerShare).toFixed(2) : "";
+
+  function updateShareCount(value: string) {
+    setShareCount(value);
+    setSharesAmount(value !== "" && Number.isFinite(Number(value) * pricePerShare)
+      ? (Number(value) * pricePerShare).toFixed(2) : "");
+    setNotice("");
+  }
+
+  function updateSharesAmount(value: string) {
+    setSharesAmount(value);
+    setShareCount(value !== "" && Number.isFinite(Number(value))
+      ? String(Number(value) / pricePerShare) : "");
+    setNotice("");
+  }
 
   useEffect(() => {
     const panel = dialog.current;
@@ -60,13 +73,13 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
           <>
             <div className="field">
               <label htmlFor="business-share-count">No. of Shares</label>
-              <input ref={firstInput} id="business-share-count" name="share_count" type="number" min="1" max={Math.floor(Number.MAX_SAFE_INTEGER / 10000)} step="1" required value={shareCount} onChange={(event) => { setShareCount(event.target.value); setNotice(""); }} aria-describedby="business-share-price" />
+              <input ref={firstInput} id="business-share-count" name="share_count" type="number" min="1" max={Math.floor(Number.MAX_SAFE_INTEGER / 10000)} step="1" required value={shareCount} onChange={(event) => updateShareCount(event.target.value)} aria-describedby="business-share-price" />
               <p id="business-share-price" className="cycle-field-hint">{pesos(pricePerShare)} per share.</p>
             </div>
             <div className="field">
               <label htmlFor="business-shares">Shares (₱)</label>
-              <input id="business-shares" name="shares" type="number" value={sharesAmount} readOnly aria-describedby="business-shares-hint" />
-              <p id="business-shares-hint" className="cycle-field-hint">Calculated automatically from the number of shares.</p>
+              <input id="business-shares" name="shares" type="number" min={pricePerShare} max={Math.floor(Number.MAX_SAFE_INTEGER / 10000) * pricePerShare} step={pricePerShare} required value={sharesAmount} onChange={(event) => updateSharesAmount(event.target.value)} aria-describedby="business-shares-hint" />
+              <p id="business-shares-hint" className="cycle-field-hint">Edit either field to update the other. Enter multiples of {pesos(pricePerShare)} for whole shares.</p>
             </div>
           </>
         ) : (
