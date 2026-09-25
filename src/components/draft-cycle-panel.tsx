@@ -63,7 +63,7 @@ export function DraftCyclePanel({ onClose, onCreate, returnFocus }: {
         <div className="cycle-form-row">
           <div className="field">
             <label htmlFor="cycle-interest-rate">Monthly Interest Rate (%)</label>
-            <input id="cycle-interest-rate" name="interest_rate" type="number" min="0" step="0.000001" defaultValue="2.5" aria-describedby="cycle-interest-description" required />
+            <input id="cycle-interest-rate" name="interest_rate" type="number" min="0" step="0.000001" defaultValue="3" aria-describedby="cycle-interest-description" required />
           </div>
           <div className="field">
             <label htmlFor="cycle-interest-type">Interest Type</label>
