@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { DraftCyclePanel } from "@/components/draft-cycle-panel";
 import { canManageCycles } from "@/lib/auth";
-import { fetchCycles } from "@/lib/cycles";
 import { getCurrentCycle, type DisplayCycle, type DraftDetails } from "@/lib/cycle-state";
 
 const states = {
@@ -15,30 +14,13 @@ const states = {
   distributing: { title: "Currently distributing", description: "This cycle is in its distribution phase. A new draft can be added once distribution is complete.", action: null },
 };
 
-function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; groupSlug: string }) {
-  const [cycles, setCycles] = useState<DisplayCycle[] | null>(null);
-  const [error, setError] = useState(false);
-  const [attempt, setAttempt] = useState(0);
+function CyclesWorkspace() {
+  // Temporary empty mock so the draft form can be previewed without cycle API data.
+  const [cycles, setCycles] = useState<DisplayCycle[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [notice, setNotice] = useState("");
   const actionButton = useRef<HTMLButtonElement>(null);
   const statusHeading = useRef<HTMLHeadingElement>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchCycles(accessToken, groupSlug, controller.signal)
-      .then((result) => { if (!controller.signal.aborted) setCycles(result); })
-      .catch(() => { if (!controller.signal.aborted) setError(true); });
-    return () => controller.abort();
-  }, [accessToken, groupSlug, attempt]);
-
-  if (error) return (
-    <div className="members-feedback">
-      <p role="alert">Unable to load cycles. Please try again.</p>
-      <button className="text-button" onClick={() => { setError(false); setAttempt((value) => value + 1); }}>Try again</button>
-    </div>
-  );
-  if (cycles === null) return <p role="status">Loading cycles…</p>;
 
   const current = getCurrentCycle(cycles);
   const state = current?.status ?? "none";
@@ -53,13 +35,13 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
     if (current.status === "distributing") return;
     const nextStatus = current.status === "draft" ? "ACTIVE" : "DISTRIBUTING";
     // Temporary UI state only; connect to the updated backend when available.
-    setCycles((items) => items?.map((cycle) => cycle.id === current.cycle.id ? { ...cycle, status: nextStatus } : cycle) ?? null);
+    setCycles((items) => items.map((cycle) => cycle.id === current.cycle.id ? { ...cycle, status: nextStatus } : cycle));
     setNotice(nextStatus === "ACTIVE" ? "Cycle activated for this preview." : "Cycle changed to distributing for this preview.");
     statusHeading.current?.focus();
   }
 
   function addDraft(details: DraftDetails) {
-    setCycles((items) => [...(items ?? []), { id: `preview-${crypto.randomUUID()}`, status: "DRAFT", details }]);
+    setCycles((items) => [...items, { id: `preview-${crypto.randomUUID()}`, status: "DRAFT", details }]);
     setNotice("Draft cycle added for this preview.");
     setShowForm(false);
   }
@@ -122,7 +104,7 @@ export default function CyclesPage() {
       <h1>Cycles</h1>
       <p>Manage savings cycles for {group?.name || subdomain || "your COMSCA community"}.</p>
       {session && subdomain ? (
-        <CyclesWorkspace key={`${subdomain}:${session.access_token}`} accessToken={session.access_token} groupSlug={subdomain} />
+        <CyclesWorkspace key={`${subdomain}:${session.access_token}`} />
       ) : <p className="members-feedback" role="status">Please sign in through your community’s URL to view cycles.</p>}
     </main>
   );
