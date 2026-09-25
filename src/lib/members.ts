@@ -5,6 +5,24 @@ export type Member = {
   phone: string | null;
 };
 
+export type NewMember = { first_name: string; family_name: string; phone: string; address: string };
+
+export async function createMember(accessToken: string, groupSlug: string, member: NewMember) {
+  if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
+  const base = (process.env.NEXT_PUBLIC_API_URL ||
+    "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
+  const response = await fetch(`${base}/groups/users`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "x-group-slug": groupSlug, "Content-Type": "application/json" },
+    body: JSON.stringify({ firstname: member.first_name.trim(), lastname: member.family_name.trim(), phone: member.phone || null, address: member.address.trim() || null }),
+    signal: AbortSignal.timeout(15000),
+  });
+  const body = await response.json();
+  if (!response.ok || body?.success !== true) {
+    throw new Error(typeof body?.error === "string" ? body.error : "Unable to add member. Please try again.");
+  }
+}
+
 async function requestMembers(accessToken: string, groupSlug: string, signal?: AbortSignal) {
   if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
   const base = (process.env.NEXT_PUBLIC_API_URL ||

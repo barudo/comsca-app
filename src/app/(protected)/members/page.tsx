@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { AddMemberPanel } from "@/components/add-member-panel";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { fetchMembers, type Member } from "@/lib/members";
@@ -56,6 +57,11 @@ function MembersTable({ accessToken, groupSlug }: { accessToken: string; groupSl
 export default function MembersPage() {
   const { session, user } = useAuth();
   const { subdomain, group } = useCommunity();
+  const [showForm, setShowForm] = useState(false);
+  const [revision, setRevision] = useState(0);
+  const [notice, setNotice] = useState("");
+  const addButton = useRef<HTMLButtonElement>(null);
+  const canAddMember = user?.role === "OWNER" || user?.role === "ADMIN";
 
   if (!canViewMembers(user)) {
     return (
@@ -68,11 +74,21 @@ export default function MembersPage() {
 
   return (
     <main className="protected-content">
-      <h1>Members</h1>
+      <div className="members-heading">
+        <h1>Members</h1>
+        {canAddMember && session && subdomain && <button ref={addButton} type="button" className="submit-button" onClick={() => setShowForm(true)}>Add Member</button>}
+      </div>
       <p>Members of {group?.name || subdomain || "your COMSCA community"}.</p>
+      {notice && <p role="status">{notice}</p>}
       {session && subdomain ? (
-        <MembersTable key={`${subdomain}:${session.access_token}`} accessToken={session.access_token} groupSlug={subdomain} />
+        <MembersTable key={`${subdomain}:${session.access_token}:${revision}`} accessToken={session.access_token} groupSlug={subdomain} />
       ) : <p className="members-feedback" role="status">Please sign in through your community’s URL to view members.</p>}
+      {showForm && canAddMember && session && subdomain && <AddMemberPanel
+        key={`${subdomain}:${session.access_token}`}
+        accessToken={session.access_token} groupSlug={subdomain} returnFocus={addButton}
+        onClose={() => setShowForm(false)}
+        onCreated={() => { setShowForm(false); setNotice("Member added."); setRevision((value) => value + 1); }}
+      />}
     </main>
   );
 }

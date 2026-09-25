@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fetchActiveCycleMembers, fetchMembers } from "../src/lib/members.ts";
+import { createMember, fetchActiveCycleMembers, fetchMembers } from "../src/lib/members.ts";
 
 test("business lists only members enrolled in the verified active cycle", async (t) => {
   t.mock.method(globalThis, "fetch", async (url, options) => {
@@ -86,4 +86,24 @@ test("missing authentication or community prevents a members request", async (t)
   await assert.rejects(fetchMembers("", "cebu"), /sign in/);
   await assert.rejects(fetchMembers("access", " "), /sign in/);
   assert.equal(fetch.mock.callCount(), 0);
+});
+
+
+test("adding a member maps form names to the authenticated group API", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.ok(url.endsWith("/groups/users"));
+    assert.equal(options.method, "POST");
+    assert.equal(options.headers.Authorization, "Bearer access");
+    assert.equal(options.headers["x-group-slug"], "cebu");
+    assert.deepEqual(JSON.parse(options.body), {
+      firstname: "Ana", lastname: "Cruz", phone: "+639171234567", address: "Main Street\nCebu",
+    });
+    return Response.json({ success: true, user: { id: 10 } }, { status: 201 });
+  });
+  await createMember("access", "cebu", { first_name: " Ana ", family_name: "Cruz", phone: "+639171234567", address: "Main Street\nCebu" });
+});
+
+test("adding a member surfaces backend failures", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({ success: false, error: "Invalid phone" }, { status: 400 }));
+  await assert.rejects(createMember("access", "cebu", { first_name: "Ana", family_name: "Cruz", phone: "invalid", address: "" }), /Invalid phone/);
 });

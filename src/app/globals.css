@@ -529,6 +529,11 @@ h1 > span {
 .cycle-name { font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
 .cycle-status-description { color: var(--muted); line-height: 1.7; max-width: 650px; }
 .cycle-description { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
+.members-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.members-heading .submit-button { width: auto; margin: 0; }
+.member-phone-input { display: flex; align-items: stretch; }
+.member-phone-input > span { display: flex; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-right: 0; border-radius: 8px 0 0 8px; background: var(--pale); }
+.member-phone-input input { border-radius: 0 8px 8px 0; }
 .cycle-actions { display: flex; gap: 12px; margin-top: 20px; }
 .cycle-primary-action { width: auto; min-width: 0; max-width: 100%; margin-top: 0; padding-inline: 24px; }
 .cycle-details {
