@@ -1,50 +1,28 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
+import { DraftCyclePanel } from "@/components/draft-cycle-panel";
 import { canManageCycles } from "@/lib/auth";
-import { canAddCycle, createCycle, fetchCycles, type Cycle } from "@/lib/cycles";
+import { fetchCycles } from "@/lib/cycles";
+import { getCurrentCycle, type DisplayCycle, type DraftDetails } from "@/lib/cycle-state";
 
-function CyclesTable({ accessToken, groupSlug }: { accessToken: string; groupSlug: string }) {
-  const [cycles, setCycles] = useState<Cycle[] | null>(null);
+const states = {
+  none: { title: "No cycle", description: "Start a new savings cycle by setting up a draft for your community.", action: "Add a Draft Cycle" },
+  draft: { title: "Draft cycle", description: "Your draft is ready. Activate it when your community is ready to start saving.", action: "Activate This Cycle" },
+  active: { title: "Active cycle", description: "Your community is in its savings phase. When ready, move this cycle to distribution.", action: "Change to Distributing" },
+  distributing: { title: "Currently distributing", description: "This cycle is in its distribution phase. A new draft can be added once distribution is complete.", action: null },
+};
+
+function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; groupSlug: string }) {
+  const [cycles, setCycles] = useState<DisplayCycle[] | null>(null);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const submitting = useRef(false);
   const [notice, setNotice] = useState("");
-  const [saveError, setSaveError] = useState("");
-
-  async function handleCreate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (submitting.current || cycles === null || !canAddCycle(cycles)) return;
-    const fields = new FormData(event.currentTarget);
-    submitting.current = true;
-    setSaving(true);
-    setNotice("");
-    setSaveError("");
-    try {
-      await createCycle(accessToken, groupSlug, {
-        interest_rate: String(fields.get("interest_rate")).trim(),
-        interest_period: "MONTHLY",
-        interest_method: "COMPOUND",
-        cost_per_share: String(fields.get("cost_per_share")).trim(),
-        status: "draft",
-      });
-      setNotice("Draft cycle created.");
-      setShowForm(false);
-    } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Unable to create the cycle. Please try again.");
-    } finally {
-      // Reload even after a failed request: the server may have accepted a POST
-      // whose response was lost, or another admin may have activated a cycle.
-      setCycles(null);
-      setAttempt((value) => value + 1);
-      setSaving(false);
-      submitting.current = false;
-    }
-  }
+  const actionButton = useRef<HTMLButtonElement>(null);
+  const statusHeading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -62,41 +40,66 @@ function CyclesTable({ accessToken, groupSlug }: { accessToken: string; groupSlu
   );
   if (cycles === null) return <p role="status">Loading cycles…</p>;
 
+  const current = getCurrentCycle(cycles);
+  const state = current?.status ?? "none";
+  const content = states[state];
+  const details = current?.cycle.details;
+
+  function handleAction() {
+    if (!current) {
+      setShowForm(true);
+      return;
+    }
+    if (current.status === "distributing") return;
+    const nextStatus = current.status === "draft" ? "ACTIVE" : "DISTRIBUTING";
+    // Temporary UI state only; connect to the updated backend when available.
+    setCycles((items) => items?.map((cycle) => cycle.id === current.cycle.id ? { ...cycle, status: nextStatus } : cycle) ?? null);
+    setNotice(nextStatus === "ACTIVE" ? "Cycle activated for this preview." : "Cycle changed to distributing for this preview.");
+    statusHeading.current?.focus();
+  }
+
+  function addDraft(details: DraftDetails) {
+    setCycles((items) => [...(items ?? []), { id: `preview-${crypto.randomUUID()}`, status: "DRAFT", details }]);
+    setNotice("Draft cycle added for this preview.");
+    setShowForm(false);
+  }
+
   return (
     <>
-      {notice && <p role="status">{notice}</p>}
-      {saveError && <p role="alert">{saveError}</p>}
-      {!canAddCycle(cycles) && <p role="status">An active cycle exists. Close it before adding another cycle.</p>}
-      <div className="cycle-actions">
-        <button className="submit-button" disabled={!canAddCycle(cycles) || saving || showForm} onClick={() => { setShowForm(true); setNotice(""); setSaveError(""); }}>Add cycle</button>
-      </div>
-      {showForm && canAddCycle(cycles) && (
-        <form className="cycle-form" onSubmit={handleCreate}>
-          <h2>New cycle</h2>
-          <p>New cycles start as drafts, with monthly compound interest.</p>
-          <fieldset disabled={saving}>
-            <div className="field">
-              <label htmlFor="cycle-interest-rate">Interest rate (%)</label>
-              <input id="cycle-interest-rate" name="interest_rate" type="number" min="0" step="0.000001" defaultValue="2.500000" required />
-            </div>
-            <div className="field">
-              <label htmlFor="cycle-cost-per-share">Cost per share</label>
-              <input id="cycle-cost-per-share" name="cost_per_share" type="number" min="0.01" step="0.01" defaultValue="100.00" required />
-            </div>
-            <button className="submit-button" type="submit">{saving ? "Creating…" : "Create draft cycle"}</button>
-            <button className="text-button" type="button" onClick={() => setShowForm(false)}>Cancel</button>
-          </fieldset>
-        </form>
-      )}
-      {cycles.length === 0 ? <p role="status">No cycles found in this community.</p> : (
+      <p className="cycle-preview-note">Preview: changes on this page are temporary and reset when you leave or refresh.</p>
+      <p role="status" className="cycle-notice">{notice}</p>
+      <section className={`cycle-status-card cycle-status-${state}`} aria-labelledby="cycle-status-title">
+        <div className="cycle-status-topline">
+          <span className="eyebrow">CURRENT CYCLE</span>
+          <span className="cycle-status-badge"><span aria-hidden="true" />{content.title}</span>
+        </div>
+        <h2 id="cycle-status-title" ref={statusHeading} tabIndex={-1}>{content.title}</h2>
+        {current && <p className="cycle-name">{details?.name ?? `Cycle ${current.cycle.id}`}</p>}
+        <p className="cycle-status-description">{content.description}</p>
+        {details && (
+          <>
+            {details.description && <p className="cycle-description">{details.description}</p>}
+            <dl className="cycle-details">
+              <div><dt>Interest rate</dt><dd>{details.interestRate}%</dd></div>
+              <div><dt>Interest type</dt><dd>{details.interestType === "simple" ? "Simple" : "Compounded"}</dd></div>
+              <div><dt>Starting subscription</dt><dd>{Number(details.startingSubscription).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd></div>
+              <div><dt>Maximum monthly buyable shares</dt><dd>{details.maximumMonthlyShares}</dd></div>
+              <div><dt>Cost per share</dt><dd>{Number(details.costPerShare).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd></div>
+            </dl>
+          </>
+        )}
+        {content.action && <button ref={actionButton} type="button" className="submit-button cycle-primary-action" onClick={handleAction}>{content.action}</button>}
+      </section>
+      {cycles.length > 0 && (
         <div className="members-table-wrapper" role="region" aria-label="Community cycles" tabIndex={0}>
           <table className="members-table">
-            <caption>{cycles.length} {cycles.length === 1 ? "cycle" : "cycles"}</caption>
-            <thead><tr><th scope="col">Cycle ID</th><th scope="col">Status</th></tr></thead>
-            <tbody>{cycles.map((cycle) => <tr key={cycle.id}><th scope="row">{cycle.id}</th><td>{cycle.status}</td></tr>)}</tbody>
+            <caption>All cycles</caption>
+            <thead><tr><th scope="col">Cycle</th><th scope="col">Status</th></tr></thead>
+            <tbody>{cycles.map((cycle) => <tr key={cycle.id}><th scope="row">{cycle.details?.name ?? `Cycle ${cycle.id}`}</th><td className="cycle-table-status">{cycle.status.toLowerCase()}</td></tr>)}</tbody>
           </table>
         </div>
       )}
+      {showForm && <DraftCyclePanel onClose={() => setShowForm(false)} onCreate={addDraft} returnFocus={actionButton} />}
     </>
   );
 }
@@ -117,11 +120,10 @@ export default function CyclesPage() {
   return (
     <main className="protected-content">
       <h1>Cycles</h1>
-      <p>Cycles for {group?.name || subdomain || "your COMSCA community"}.</p>
-      <p>Only one cycle can be active at a time. A new cycle can be added when all existing cycles are inactive.</p>
+      <p>Manage savings cycles for {group?.name || subdomain || "your COMSCA community"}.</p>
       {session && subdomain ? (
-        <CyclesTable key={`${subdomain}:${session.access_token}`} accessToken={session.access_token} groupSlug={subdomain} />
-      ) : <p role="status">Please sign in through your community’s URL to view cycles.</p>}
+        <CyclesWorkspace key={`${subdomain}:${session.access_token}`} accessToken={session.access_token} groupSlug={subdomain} />
+      ) : <p className="members-feedback" role="status">Please sign in through your community’s URL to view cycles.</p>}
     </main>
   );
 }

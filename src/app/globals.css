@@ -483,32 +483,124 @@ h1 > span {
   cursor: wait;
 }
 
-.cycle-actions {
-  margin-top: 24px;
-  max-width: 180px;
+.cycle-preview-note, .cycle-field-hint, .cycle-optional {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
 }
-.cycle-form {
-  margin-top: 24px;
-  padding: 24px;
-  max-width: 480px;
+.cycle-notice:empty { display: none; }
+.cycle-notice { color: var(--blue); }
+.cycle-status-card {
+  margin-top: 28px;
+  padding: 32px;
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgb(20 53 114 / 4%);
 }
-.cycle-form fieldset {
-  margin: 20px 0 0;
-  padding: 0;
+.cycle-status-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.cycle-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  background: var(--pale);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.cycle-status-badge > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.cycle-status-active .cycle-status-badge { background: #e8f5ee; color: #246746; }
+.cycle-status-draft .cycle-status-badge { background: #edf3ff; color: var(--blue); }
+.cycle-status-distributing .cycle-status-badge { background: #fff4dc; color: #805d14; }
+.cycle-status-card h2 { margin: 26px 0 12px; font-size: 28px; letter-spacing: -0.6px; }
+.cycle-name { font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
+.cycle-status-description { color: var(--muted); line-height: 1.7; max-width: 650px; }
+.cycle-description { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
+.cycle-primary-action { width: auto; max-width: 100%; margin-top: 20px; padding-inline: 24px; }
+.cycle-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 24px;
+  padding: 24px 0;
+  margin: 24px 0 0;
+  border-top: 1px solid var(--line);
+}
+.cycle-details dt { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.cycle-details dd { margin: 8px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+.cycle-table-status { text-transform: capitalize; }
+.cycle-drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  margin: 0;
+  width: min(540px, 100%);
+  max-width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 32px;
   border: 0;
+  border-left: 1px solid var(--line);
+  color: var(--ink);
+  background: #fff;
+  box-shadow: -16px 0 64px rgb(20 53 114 / 15%);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cycle-drawer[open] { animation: cycle-slide-in 240ms ease-out; }
+.cycle-drawer::backdrop { background: rgb(12 31 65 / 40%); }
+.cycle-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.cycle-drawer-header h2 { font-size: 26px; margin: 12px 0 0; letter-spacing: -0.5px; }
+.cycle-drawer > p { line-height: 1.7; color: var(--muted); margin-bottom: 28px; }
+.cycle-close {
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--pale);
+  color: var(--ink);
+  width: 40px;
+  height: 40px;
+  font-size: 26px;
+}
+.cycle-draft-form .field { margin-bottom: 22px; min-width: 0; }
+.cycle-draft-form input, .cycle-draft-form select, .cycle-draft-form textarea {
+  width: 100%;
   min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
 }
-.cycle-form .text-button {
-  margin-top: 12px;
+.cycle-draft-form textarea { resize: vertical; min-height: 96px; }
+.cycle-draft-form label { line-height: 1.5; }
+.cycle-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.cycle-field-hint { margin: 6px 0 0; }
+.cycle-drawer-footer { display: flex; align-items: center; gap: 16px; padding-top: 20px; border-top: 1px solid var(--line); }
+.cycle-drawer-footer .submit-button { margin: 0; flex: 1; }
+.cycle-cancel { padding: 14px 20px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: #fff; }
+.cycle-close:hover, .cycle-cancel:hover { background: var(--pale); }
+@keyframes cycle-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@media (max-width: 600px) {
+  .cycle-status-card, .cycle-drawer { padding: 24px 20px; }
+  .cycle-primary-action { width: 100%; }
+  .cycle-form-row { grid-template-columns: 1fr; gap: 0; }
 }
-.cycle-actions button:disabled,
-.cycle-form fieldset:disabled button {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
+@media (prefers-reduced-motion: reduce) {
+  .cycle-drawer[open] { animation: none; }
 }
 .members-feedback {
   margin-top: 24px;
