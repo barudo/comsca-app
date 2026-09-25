@@ -100,7 +100,10 @@ export default function MembersPage() {
     <main className="protected-content">
       <div className="members-heading">
         <h1>Members</h1>
-        {canAddMember && session && subdomain && <button ref={addButton} type="button" className="submit-button" onClick={() => { setEditingMember(undefined); formTrigger.current = addButton.current; setShowForm(true); }}>Add Member</button>}
+        {canAddMember && session && subdomain && <button ref={addButton} type="button" className="submit-button add-member-button" aria-label="Add Member" title="Add Member" onClick={() => { setEditingMember(undefined); formTrigger.current = addButton.current; setShowForm(true); }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          <span className="add-member-label">Add Member</span>
+        </button>}
       </div>
       <p>Members of {group?.name || subdomain || "your COMSCA community"}.</p>
       {notice && <p role="status">{notice}</p>}

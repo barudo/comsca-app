@@ -531,6 +531,11 @@ h1 > span {
 .cycle-description { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
 .members-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .members-heading .submit-button { width: auto; margin: 0; }
+.add-member-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+@media (max-width: 600px) {
+  .add-member-label { display: none; }
+  .members-heading .add-member-button { width: 44px; height: 44px; padding: 0; flex-shrink: 0; }
+}
 .member-edit-button { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); cursor: pointer; }
 .member-edit-button:hover { background: var(--pale); }
 .member-edit-button:disabled { opacity: 0.5; cursor: not-allowed; }
