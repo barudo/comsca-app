@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { updateMember, createMember, fetchActiveCycleMembers, fetchMembers } from "../src/lib/members.ts";
+import { enableMemberLogin, updateMember, createMember, fetchActiveCycleMembers, fetchMembers } from "../src/lib/members.ts";
 
 test("business lists only members enrolled in the verified active cycle", async (t) => {
   t.mock.method(globalThis, "fetch", async (url, options) => {
@@ -13,7 +13,7 @@ test("business lists only members enrolled in the verified active cycle", async 
     ] });
   });
   assert.deepEqual(await fetchActiveCycleMembers("access", "cebu", 7), [
-    { id: 1, first_name: "Maria", family_name: "Santos", address: "", name: "Maria Santos", email: null, phone: null },
+    { id: 1, isCurrentCycleMember: true, first_name: "Maria", family_name: "Santos", address: "", name: "Maria Santos", email: null, phone: null },
   ]);
 });
 
@@ -66,7 +66,7 @@ test("members accepts the groups/users response with split names and nullable co
     }],
   }));
   assert.deepEqual(await fetchMembers("access", "cebu"), [{
-    id: "6", first_name: "Marie Ronaldine", family_name: "Villocido", address: "", name: "Marie Ronaldine Villocido", email: null, phone: "+639499981817",
+    id: "6", isCurrentCycleMember: false, first_name: "Marie Ronaldine", family_name: "Villocido", address: "", name: "Marie Ronaldine Villocido", email: null, phone: "+639499981817",
   }]);
 });
 
@@ -124,4 +124,24 @@ test("member edits use PUT on the selected member and preserve multiline address
 test("failed member edits surface the API error", async (t) => {
   t.mock.method(globalThis, "fetch", async () => Response.json({ success: false, error: "Member not found" }, { status: 404 }));
   await assert.rejects(updateMember("access", "cebu", 42, { first_name: "Ana", family_name: "Cruz", phone: "", address: "" }), /Member not found/);
+});
+
+test("enabling login posts only the initial password to the member account endpoint", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.ok(url.endsWith("/groups/users/42/account"));
+    assert.equal(options.method, "POST");
+    assert.equal(options.headers.Authorization, "Bearer access");
+    assert.equal(options.headers["x-group-slug"], "cebu");
+    assert.deepEqual(JSON.parse(options.body), { password: "test-password" });
+    return Response.json({ success: true });
+  });
+  await enableMemberLogin("access", "cebu", 42, "test-password");
+});
+
+test("login provisioning validates password length and surfaces API failures", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({ success: false, error: "Login already exists" }, { status: 409 }));
+  await assert.rejects(enableMemberLogin("access", "cebu", 42, "short"), /at least 8/);
+  await assert.rejects(enableMemberLogin("access", "cebu", 42, "界".repeat(25)), /72 UTF-8 bytes/);
+  assert.equal(fetch.mock.callCount(), 0);
+  await assert.rejects(enableMemberLogin("access", "cebu", 42, "test-password"), /Login already exists/);
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { MemberLoginPanel } from "@/components/member-login-panel";
 import { AddMemberPanel } from "@/components/add-member-panel";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
@@ -11,6 +12,9 @@ function MembersTable({ accessToken, groupSlug, onEdit }: { accessToken: string;
   const [members, setMembers] = useState<Member[] | null>(null);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [loginSelection, setLoginSelection] = useState<{ member: Member; trigger: HTMLButtonElement } | null>(null);
+  const [loginEnabled, setLoginEnabled] = useState<Array<string | number>>([]);
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -36,24 +40,39 @@ function MembersTable({ accessToken, groupSlug, onEdit }: { accessToken: string;
   if (members.length === 0) return <p className="members-feedback" role="status">No members found in this community.</p>;
 
   return (
-    <div className="members-table-wrapper" role="region" aria-label="Community members" tabIndex={0}>
-      <table className="members-table">
+    <>
+    {notice && <p role="status">{notice}</p>}
+    <div className="members-table-wrapper group-members-wrapper" role="region" aria-label="Community members" tabIndex={0}>
+      <table className="members-table group-members-table">
         <caption>{members.length} {members.length === 1 ? "member" : "members"}</caption>
         <thead>
-          <tr><th scope="col">#</th><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Phone</th>{onEdit && <th scope="col">Actions</th>}</tr>
+          <tr><th scope="col">#</th><th scope="col">Name</th><th scope="col">Phone</th>{onEdit && <th scope="col">Actions</th>}</tr>
         </thead>
         <tbody>
           {members.map((member, index) => (
             <tr key={member.id ?? index}>
-              <td>{index + 1}</td><th scope="row">{member.name || "—"}</th><td>{member.email || "—"}</td><td>{member.phone || "—"}</td>
-              {onEdit && <td><button type="button" className="member-edit-button" aria-label={`Edit ${member.name || "member"}`} title="Edit member" disabled={member.id === undefined} onClick={(event) => onEdit(member, event.currentTarget)}>
+              <td className="member-row-number">{index + 1}</td><th scope="row" className="member-row-name">{member.name || "—"}</th><td className="member-row-phone">{member.phone || "—"}</td>
+              {onEdit && <td className="member-row-actions"><div className="member-actions"><button type="button" className="member-edit-button" aria-label={`Edit ${member.name || "member"}`} title="Edit member" disabled={member.id === undefined} onClick={(event) => onEdit(member, event.currentTarget)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m16 3 5 5M4 20l4-1L21 6a2.1 2.1 0 0 0-3-3L5 16l-1 4Z" /></svg>
-              </button></td>}
+              </button>
+              <button type="button" className="member-edit-button" aria-label={`Enable Login for ${member.name || "member"}`} title={member.id !== undefined && loginEnabled.includes(member.id) ? "Login enabled" : !member.phone ? "Add a phone number to enable login" : "Enable Login"} disabled={member.id === undefined || !member.phone || loginEnabled.includes(member.id)} onClick={(event) => setLoginSelection({ member, trigger: event.currentTarget })}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="4" /><path d="m11 11 10 10m-5-5 3-3m-6 0 3-3" /></svg>
+              </button>
+              <button type="button" className="member-edit-button" aria-label={`Make cycle member: ${member.name || "member"}`} title={member.isCurrentCycleMember ? "Already a cycle member" : "Make cycle member — enrollment is not available yet"} disabled>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="9" cy="7" r="4" /><path d="M2 21v-2a7 7 0 0 1 14 0v2m3-13v8m-4-4h8" /></svg>
+              </button>
+              </div></td>}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+    {loginSelection && <MemberLoginPanel member={loginSelection.member} trigger={loginSelection.trigger} accessToken={accessToken} groupSlug={groupSlug} onClose={() => setLoginSelection(null)} onSaved={() => {
+      if (loginSelection.member.id !== undefined) setLoginEnabled((ids) => [...ids, loginSelection.member.id!]);
+      setNotice(`Login enabled for ${loginSelection.member.name}.`);
+      setLoginSelection(null);
+    }} />}
+    </>
   );
 }
 

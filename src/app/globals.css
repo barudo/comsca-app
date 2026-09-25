@@ -645,6 +645,19 @@ h1 > span {
 .members-table tbody th {
   font-weight: 500;
 }
+.member-actions { display: flex; align-items: center; gap: 8px; }
+@media (max-width: 600px) {
+  .group-members-wrapper { overflow-x: visible; }
+  .group-members-table thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
+  .group-members-table tbody, .group-members-table tr { display: block; }
+  .group-members-table tbody tr { padding: 16px 20px; border-top: 1px solid var(--line); }
+  .group-members-table tbody th, .group-members-table tbody td { display: block; padding: 0; border: 0; min-width: 0; }
+  .group-members-table .member-row-number { display: none; }
+  .group-members-table .member-row-name { font-weight: 600; }
+  .group-members-table .member-row-phone { margin-top: 6px; color: var(--muted); }
+  .group-members-table .member-row-actions { margin-top: 12px; }
+  .member-actions .member-edit-button { width: 44px; height: 44px; }
+}
 .business-cycle-summary {
   display: flex;
   align-items: center;
