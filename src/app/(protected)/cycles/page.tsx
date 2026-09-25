@@ -5,7 +5,7 @@ import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { DraftCyclePanel } from "@/components/draft-cycle-panel";
 import { canManageCycles } from "@/lib/auth";
-import { getCurrentCycle, type DisplayCycle, type DraftDetails } from "@/lib/cycle-state";
+import { getCurrentCycle, interestTypes, type DisplayCycle, type DraftDetails } from "@/lib/cycle-state";
 
 const states = {
   none: { title: "No cycle", description: "Start a new savings cycle by setting up a draft for your community.", action: "Add a Draft Cycle" },
@@ -62,8 +62,8 @@ function CyclesWorkspace() {
           <>
             {details.description && <p className="cycle-description">{details.description}</p>}
             <dl className="cycle-details">
-              <div><dt>Interest rate</dt><dd>{details.interestRate}%</dd></div>
-              <div><dt>Interest type</dt><dd>{details.interestType === "simple" ? "Simple" : "Compounded"}</dd></div>
+              <div><dt>Monthly Interest Rate</dt><dd>{details.interestRate}%</dd></div>
+              <div><dt>Interest type</dt><dd>{interestTypes[details.interestType].label}</dd></div>
               <div><dt>Starting subscription</dt><dd>{Number(details.startingSubscription).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd></div>
               <div><dt>Maximum monthly buyable shares</dt><dd>{details.maximumMonthlyShares}</dd></div>
               <div><dt>Cost per share</dt><dd>{Number(details.costPerShare).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd></div>

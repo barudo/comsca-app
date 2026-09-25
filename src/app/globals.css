@@ -589,6 +589,7 @@ h1 > span {
 .cycle-draft-form label { line-height: 1.5; }
 .cycle-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .cycle-field-hint { margin: 6px 0 0; }
+.cycle-interest-description { margin: -10px 0 22px; }
 .cycle-drawer-footer { display: flex; align-items: center; gap: 16px; padding-top: 20px; border-top: 1px solid var(--line); }
 .cycle-drawer-footer .submit-button { margin: 0; flex: 1; }
 .cycle-cancel { padding: 14px 20px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: #fff; }

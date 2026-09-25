@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, type FormEvent, type RefObject } from "react";
-import type { DraftDetails } from "@/lib/cycle-state";
+import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
+import { interestTypes, type DraftDetails, type InterestType } from "@/lib/cycle-state";
 
 export function DraftCyclePanel({ onClose, onCreate, returnFocus }: {
   onClose: () => void;
@@ -10,6 +10,7 @@ export function DraftCyclePanel({ onClose, onCreate, returnFocus }: {
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
+  const [interestType, setInterestType] = useState<InterestType>("compounded");
 
   useEffect(() => {
     const panel = dialog.current;
@@ -32,7 +33,7 @@ export function DraftCyclePanel({ onClose, onCreate, returnFocus }: {
       name: String(data.get("name")).trim(),
       description: String(data.get("description")).trim(),
       interestRate: String(data.get("interest_rate")),
-      interestType: data.get("interest_type") === "simple" ? "simple" : "compounded",
+      interestType,
       startingSubscription: String(data.get("starting_subscription")),
       maximumMonthlyShares: Number(data.get("maximum_monthly_shares")),
       costPerShare: String(data.get("cost_per_share")),
@@ -61,14 +62,17 @@ export function DraftCyclePanel({ onClose, onCreate, returnFocus }: {
         </div>
         <div className="cycle-form-row">
           <div className="field">
-            <label htmlFor="cycle-interest-rate">Interest rate (%)</label>
-            <input id="cycle-interest-rate" name="interest_rate" type="number" min="0" step="0.000001" defaultValue="2.5" required />
+            <label htmlFor="cycle-interest-rate">Monthly Interest Rate (%)</label>
+            <input id="cycle-interest-rate" name="interest_rate" type="number" min="0" step="0.000001" defaultValue="2.5" aria-describedby="cycle-interest-description" required />
           </div>
           <div className="field">
             <label htmlFor="cycle-interest-type">Interest Type</label>
-            <select id="cycle-interest-type" name="interest_type" defaultValue="compounded"><option value="simple">Simple</option><option value="compounded">Compounded</option></select>
+            <select id="cycle-interest-type" name="interest_type" value={interestType} onChange={(event) => setInterestType(event.target.value as InterestType)} aria-describedby="cycle-interest-description">
+              {Object.entries(interestTypes).map(([value, { label }]) => <option key={value} value={value}>{label}</option>)}
+            </select>
           </div>
         </div>
+        <p id="cycle-interest-description" className="cycle-field-hint cycle-interest-description" aria-live="polite">{interestTypes[interestType].description}</p>
         <div className="field">
           <label htmlFor="cycle-starting-subscription">Starting Subscription</label>
           <input id="cycle-starting-subscription" name="starting_subscription" type="number" min="0" step="0.01" placeholder="0.00" aria-describedby="subscription-hint" required />
