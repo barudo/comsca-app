@@ -5,7 +5,14 @@ export type Session = {
   expires_in?: number;
 };
 
-export type User = { name: string; role: string | null };
+export type User = {
+  name: string;
+  role: string | null;
+  first_name?: string;
+  family_name?: string;
+  phone?: string;
+  address?: string;
+};
 
 /** UI access check; the API must independently enforce the same roles. */
 export function canViewMembers(user: User | null): boolean {
@@ -43,6 +50,11 @@ export async function fetchCurrentUser(accessToken: string, groupSlug: string, s
   return {
     name,
     role: typeof profile.role === "string" ? profile.role.trim().toUpperCase() : null,
+    ...Object.fromEntries(
+      ["first_name", "family_name", "phone", "address"]
+        .filter((field) => typeof profile[field] === "string")
+        .map((field) => [field, profile[field]]),
+    ),
   };
 }
 

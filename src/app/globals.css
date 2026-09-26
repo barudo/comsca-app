@@ -851,3 +851,38 @@ h1 > span {
   background: var(--pale);
   color: var(--blue);
 }
+
+.account-settings {
+  max-width: 600px;
+  margin-top: 24px;
+}
+.account-tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--line);
+}
+.account-tabs button {
+  padding: 12px 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.account-tabs button[aria-selected="true"] {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+.account-tabs button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+.account-form {
+  padding-top: 28px;
+}
+.account-form input[readonly] {
+  background: var(--pale);
+  color: var(--muted);
+}
