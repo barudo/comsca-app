@@ -14,6 +14,12 @@ const administrationLinks = [
   { href: "/groups", label: "Members", canView: canViewMembers },
 ];
 
+const businessLinks = [
+  { href: "/business", label: "Members" },
+  { href: "/donations", label: "Donations" },
+  { href: "/other-business", label: "Others..." },
+];
+
 export function ProtectedNavigation() {
   const { activeCycle } = useCycles();
   const pathname = usePathname();
@@ -25,10 +31,12 @@ export function ProtectedNavigation() {
   const administrationMenu = useRef<HTMLDetailsElement>(null);
   const administrationActive = visibleAdministrationLinks.some(({ href }) => isActive(href));
   const accountMenu = useRef<HTMLDetailsElement>(null);
+  const businessMenu = useRef<HTMLDetailsElement>(null);
+  const businessActive = businessLinks.some(({ href }) => isActive(href));
 
   useEffect(() => {
     function closeOnOutsideClick(event: PointerEvent) {
-      for (const menu of [accountMenu.current, administrationMenu.current]) {
+      for (const menu of [accountMenu.current, administrationMenu.current, businessMenu.current]) {
         if (menu && !menu.contains(event.target as Node)) menu.open = false;
       }
     }
@@ -42,7 +50,41 @@ export function ProtectedNavigation() {
         <Brand href="/dashboard" />
         <nav aria-label="Main navigation" className="protected-links">
           <Link href="/dashboard" aria-current={pathname === "/dashboard" ? "page" : undefined}>Dashboard</Link>
-          {canViewBusiness(user) && activeCycle && <Link href="/business" aria-current={isActive("/business") ? "page" : undefined}>Business</Link>}
+          {canViewBusiness(user) && activeCycle && (
+            <details
+              key={`business:${pathname}`}
+              className="protected-account-menu protected-administration-menu"
+              ref={businessMenu}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.currentTarget.open = false;
+                  event.currentTarget.querySelector("summary")?.focus();
+                }
+              }}
+            >
+              <summary data-active={businessActive || undefined}>Business<span aria-hidden="true">▾</span></summary>
+              <div className="protected-account-dropdown">
+                {businessLinks.map(({ href, label }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    aria-current={isActive(href) ? "page" : undefined}
+                    onClick={() => {
+                      if (businessMenu.current) {
+                        businessMenu.current.open = false;
+                        if (pathname === href) businessMenu.current.querySelector("summary")?.focus();
+                      }
+                    }}
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </details>
+          )}
           {visibleAdministrationLinks.length > 0 && (
             <details
               key={pathname}
