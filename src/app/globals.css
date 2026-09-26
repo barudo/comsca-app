@@ -261,7 +261,8 @@ h1 > span {
   font-weight: 600;
   margin-bottom: 9px;
 }
-.field input {
+.field input,
+.account-form textarea {
   width: 100%;
   border: 1px solid #dce4f0;
   border-radius: 7px;
@@ -275,7 +276,8 @@ h1 > span {
 .field input::placeholder {
   color: #7082a3;
 }
-.field input:focus {
+.field input:focus,
+.account-form textarea:focus {
   border-color: var(--blue);
 }
 .password-input {
@@ -881,6 +883,10 @@ h1 > span {
 }
 .account-form {
   padding-top: 28px;
+}
+.account-form textarea {
+  font-family: inherit;
+  resize: vertical;
 }
 .account-form input[readonly] {
   background: var(--pale);

@@ -59,7 +59,7 @@ export default function Profile() {
               </div>
               <div className="field">
                 <label htmlFor="profile-address">Address</label>
-                <input id="profile-address" name="address" autoComplete="street-address" defaultValue={user.address ?? ""} />
+                <textarea id="profile-address" name="address" autoComplete="street-address" rows={4} defaultValue={user.address ?? ""} />
               </div>
             </form>
           </div>
