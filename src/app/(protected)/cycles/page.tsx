@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useCycles } from "@/components/cycle-provider";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { DraftCyclePanel } from "@/components/draft-cycle-panel";
 import { canManageCycles } from "@/lib/auth";
-import { activateCycle, createDraftCycle, fetchCycles, saveDraftCycle } from "@/lib/cycles";
-import { getCurrentCycle, interestTypes, type DisplayCycle, type DraftDetails } from "@/lib/cycle-state";
+import { activateCycle, createDraftCycle, saveDraftCycle } from "@/lib/cycles";
+import { getCurrentCycle, interestTypes, type DraftDetails } from "@/lib/cycle-state";
 
 const states = {
   none: { title: "No cycle", description: "Start a new savings cycle by setting up a draft for your community.", action: "Add a Draft Cycle" },
@@ -16,10 +17,8 @@ const states = {
 };
 
 function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; groupSlug: string }) {
-  const [cycles, setCycles] = useState<DisplayCycle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [requestVersion, setRequestVersion] = useState(0);
+  const { cycles, loading, error, refreshCycles } = useCycles();
+  const [previewDistributingId, setPreviewDistributingId] = useState<string | number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -29,25 +28,7 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
   const editButton = useRef<HTMLButtonElement>(null);
   const statusHeading = useRef<HTMLHeadingElement>(null);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchCycles(accessToken, groupSlug, controller.signal)
-      .then((items) => {
-        if (!controller.signal.aborted) {
-          setCycles(items);
-          setLoading(false);
-        }
-      })
-      .catch((cause: unknown) => {
-        if (!controller.signal.aborted) {
-          setError(cause instanceof Error ? cause.message : "Unable to load the current cycle. Please try again.");
-          setLoading(false);
-        }
-      });
-    return () => controller.abort();
-  }, [accessToken, groupSlug, requestVersion]);
-
-  const current = getCurrentCycle(cycles);
+  const current = getCurrentCycle(cycles.map((cycle) => cycle.id === previewDistributingId ? { ...cycle, status: "DISTRIBUTING" } : cycle));
   const state = current?.status ?? "none";
   const content = states[state];
   const details = current?.cycle.details;
@@ -70,9 +51,9 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
     setShowForm(false);
     setNotice(details ? "Draft changes saved." : "Cycle is now active.");
     try {
-      setCycles(await fetchCycles(accessToken, groupSlug));
+      await refreshCycles();
     } catch {
-      setError("The cycle was updated, but could not be reloaded. Try again to load its latest details.");
+      setSaveError("The cycle was updated, but could not be reloaded. Try again to load its latest details.");
     } finally {
       setSaving(false);
       mutationPending.current = false;
@@ -90,9 +71,8 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
       return;
     }
     if (current.status === "distributing") return;
-    const nextStatus = "DISTRIBUTING";
     // Temporary UI state only; connect to the updated backend when available.
-    setCycles((items) => items.map((cycle) => cycle.id === current.cycle.id ? { ...cycle, status: nextStatus } : cycle));
+    setPreviewDistributingId(current.cycle.id);
     setNotice("Cycle changed to distributing for this preview.");
     statusHeading.current?.focus();
   }
@@ -113,9 +93,9 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
     setShowForm(false);
     setNotice("Draft cycle created.");
     try {
-      setCycles(await fetchCycles(accessToken, groupSlug));
+      await refreshCycles();
     } catch {
-      setError("The draft was created, but could not be reloaded. Try again to load its latest details.");
+      setSaveError("The draft was created, but could not be reloaded. Try again to load its latest details.");
     } finally {
       setSaving(false);
       mutationPending.current = false;
@@ -127,9 +107,8 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
     <div className="members-feedback">
       <p role="alert">{error}</p>
       <button type="button" className="submit-button" onClick={() => {
-        setError("");
-        setLoading(true);
-        setRequestVersion((version) => version + 1);
+        setPreviewDistributingId(null);
+        void refreshCycles().catch(() => {});
       }}>Try again</button>
     </div>
   );

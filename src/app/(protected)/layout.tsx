@@ -2,10 +2,11 @@
 
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { CycleProvider } from "@/components/cycle-provider";
 import { ProtectedNavigation } from "@/components/protected-navigation";
 import { useAuth } from "@/components/auth-provider";
 
-export default function ProtectedLayout({ children }: { children: ReactNode }) {
+function ProtectedContent({ children }: { children: ReactNode }) {
   const { session, ready, profileLoading } = useAuth();
   const router = useRouter();
   const authenticated = !!session;
@@ -20,4 +21,8 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
       {children}
     </div>
   );
+}
+
+export default function ProtectedLayout({ children }: { children: ReactNode }) {
+  return <CycleProvider><ProtectedContent>{children}</ProtectedContent></CycleProvider>;
 }

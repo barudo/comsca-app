@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCycles } from "@/components/cycle-provider";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { canViewBusiness } from "@/lib/auth";
@@ -157,12 +158,17 @@ function BusinessMembers({ accessToken, groupSlug }: { accessToken: string; grou
 }
 
 export default function BusinessPage() {
+  const { activeCycle, loading, error, refreshCycles } = useCycles();
   const { user, session } = useAuth();
   const { subdomain, group } = useCommunity();
 
   if (!canViewBusiness(user)) return (
     <main className="protected-content"><h1>Business</h1><p role="status">Business access is restricted to owners, admins, and treasurers with a verified profile.</p></main>
   );
+
+  if (loading) return <main className="protected-content"><h1>Business</h1><p role="status">Loading current cycle…</p></main>;
+  if (error) return <main className="protected-content"><h1>Business</h1><p role="alert">{error}</p><button className="text-button" type="button" onClick={() => void refreshCycles().catch(() => {})}>Try again</button></main>;
+  if (!activeCycle) return <main className="protected-content"><h1>Business</h1><p role="status">Business is available when your community has an active cycle.</p></main>;
 
   return (
     <main className="protected-content">

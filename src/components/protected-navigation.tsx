@@ -1,5 +1,6 @@
 "use client";
 
+import { useCycles } from "@/components/cycle-provider";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
@@ -14,6 +15,7 @@ const administrationLinks = [
 ];
 
 export function ProtectedNavigation() {
+  const { activeCycle } = useCycles();
   const pathname = usePathname();
   const { subdomain } = useCommunity();
   const { user, setSession } = useAuth();
@@ -40,7 +42,7 @@ export function ProtectedNavigation() {
         <Brand href="/dashboard" />
         <nav aria-label="Main navigation" className="protected-links">
           <Link href="/dashboard" aria-current={pathname === "/dashboard" ? "page" : undefined}>Dashboard</Link>
-          {canViewBusiness(user) && <Link href="/business" aria-current={isActive("/business") ? "page" : undefined}>Business</Link>}
+          {canViewBusiness(user) && activeCycle && <Link href="/business" aria-current={isActive("/business") ? "page" : undefined}>Business</Link>}
           {visibleAdministrationLinks.length > 0 && (
             <details
               key={pathname}
