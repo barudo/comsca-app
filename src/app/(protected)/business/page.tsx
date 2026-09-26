@@ -7,7 +7,7 @@ import { useCommunity } from "@/components/community-provider";
 import { canViewBusiness } from "@/lib/auth";
 import { fetchMembers, type Member } from "@/lib/members";
 
-const actions = ["Shares", "Loan Payments", "Disburse Loans"] as const;
+const actions = ["Shares", "Loan Payments", "Disburse Loans", "Penalty"] as const;
 type BusinessAction = typeof actions[number];
 type Selection = { action: BusinessAction; member: Member; trigger: HTMLButtonElement };
 const pricePerShare = 100;
@@ -17,11 +17,12 @@ const previewAppliedLoan = 10000;
 const pesos = (amount: number) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(amount);
 
 function ActionPanel({ selection, onClose }: { selection: Selection; onClose: () => void }) {
+  const { activeCycle } = useCycles();
   const dialog = useRef<HTMLDialogElement>(null);
   const firstInput = useRef<HTMLInputElement>(null);
   const [shareCount, setShareCount] = useState("1");
   const [sharesAmount, setSharesAmount] = useState("100.00");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(selection.action === "Penalty" ? activeCycle?.details?.absencePenalty ?? "" : "");
   const [notice, setNotice] = useState("");
 
   function updateShareCount(value: string) {
@@ -64,7 +65,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         <button className="cycle-close" type="button" aria-label="Close member action" onClick={onClose}>×</button>
       </div>
       <div className="business-selected-member"><span className="eyebrow">MEMBER</span><h3 id="business-member-name">{selection.member.name || "Unnamed member"}</h3></div>
-      <p id="business-action-description">Preview only. {selection.action !== "Shares" && "Loan amounts below are sample data. "}Submissions are not saved.</p>
+      <p id="business-action-description">Preview only. {(selection.action === "Loan Payments" || selection.action === "Disburse Loans") && "Loan amounts below are sample data. "}Submissions are not saved.</p>
       <form className="cycle-draft-form" onSubmit={handleSubmit}>
         {selection.action === "Shares" ? (
           <>
@@ -79,6 +80,12 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
               <p id="business-shares-hint" className="cycle-field-hint">Edit either field to update the other. Enter multiples of {pesos(pricePerShare)} for whole shares.</p>
             </div>
           </>
+        ) : selection.action === "Penalty" ? (
+          <div className="field">
+            <label htmlFor="business-penalty">Penalty (₱)</label>
+            <input ref={firstInput} id="business-penalty" name="penalty" type="number" min="0" step="0.01" required value={amount} onChange={(event) => { setAmount(event.target.value); setNotice(""); }} aria-describedby="business-penalty-hint" />
+            <p id="business-penalty-hint" className="cycle-field-hint">Defaults to the active cycle’s absence penalty.</p>
+          </div>
         ) : (
           <>
             <dl className="business-loan-summary">
@@ -173,7 +180,7 @@ export default function BusinessPage() {
   return (
     <main className="protected-content">
       <h1>Business</h1>
-      <p>Shares, loan payments, and loan disbursements for members of {group?.name || subdomain || "your COMSCA community"}.</p>
+      <p>Shares, loan payments, loan disbursements, and penalties for members of {group?.name || subdomain || "your COMSCA community"}.</p>
       {session && subdomain ? <BusinessMembers key={`${subdomain}:${session.access_token}`} accessToken={session.access_token} groupSlug={subdomain} /> : <p role="status">Please sign in through your community’s URL to view business.</p>}
     </main>
   );
