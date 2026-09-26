@@ -892,3 +892,37 @@ h1 > span {
   background: var(--pale);
   color: var(--muted);
 }
+.account-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.account-fields:disabled {
+  opacity: 0.65;
+}
+.account-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.account-actions .submit-button {
+  width: auto;
+  margin: 0;
+  padding: 14px 24px;
+}
+.account-cancel {
+  padding: 14px 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.account-cancel:hover {
+  background: var(--pale);
+}
+.account-actions button:disabled {
+  cursor: wait;
+}

@@ -9,6 +9,7 @@ const AuthContext = createContext<{
   user: User | null;
   ready: boolean;
   profileLoading: boolean;
+  refreshUser: () => Promise<void>;
   setSession: (session: Session | null) => void;
 } | null>(null);
 
@@ -21,6 +22,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const accessToken = session?.access_token;
   const user = accessToken && profile?.accessToken === accessToken && profile.groupSlug === subdomain ? profile.user : null;
   const profileLoading = !!accessToken && !!subdomain && (profile?.accessToken !== accessToken || profile?.groupSlug !== subdomain);
+  const refreshUser = useCallback(async () => {
+    if (!accessToken || !subdomain) return;
+    const user = await fetchCurrentUser(accessToken, subdomain);
+    setProfile((current) => current?.accessToken === accessToken && current.groupSlug === subdomain
+      ? { accessToken, groupSlug: subdomain, user } : current);
+  }, [accessToken, subdomain]);
 
   const setSession = useCallback((value: Session | null) => {
     const session = value && subdomain ? readSession({ session: value }) : null;
@@ -81,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("focus", checkExpiry);
     return () => { clearTimeout(timer); window.removeEventListener("focus", checkExpiry); };
   }, [session, setSession]);
-  return <AuthContext.Provider value={{ session, setSession, user, ready, profileLoading }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ session, setSession, user, ready, profileLoading, refreshUser }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
