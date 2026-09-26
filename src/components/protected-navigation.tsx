@@ -17,6 +17,8 @@ const administrationLinks = [
 const businessLinks = [
   { href: "/business", label: "Members" },
   { href: "/donations", label: "Donations" },
+  { href: "/expense", label: "Add Expense" },
+  { href: "/disburse", label: "Disburse Payment" },
   { href: "/other-business", label: "Others..." },
 ];
 
