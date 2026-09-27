@@ -137,6 +137,9 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
               {details.costPerShare !== undefined && <div><dt>Cost per share</dt><dd>{Number(details.costPerShare).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd></div>}
               {details.absencePenalty !== undefined && <div><dt>Absence penalty</dt><dd>{Number(details.absencePenalty).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd></div>}
               {details.requiredMonthlyContribution !== undefined && <div><dt>Required monthly contribution</dt><dd>{Number(details.requiredMonthlyContribution).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd></div>}
+              {details.receiptCounter !== undefined && <div><dt>Receipt counter</dt><dd>{details.receiptCounter}</dd></div>}
+              {details.disbursementVoucherCounter !== undefined && <div><dt>Disbursement voucher counter</dt><dd>{details.disbursementVoucherCounter}</dd></div>}
+              {details.journalVoucherCounter !== undefined && <div><dt>Journal voucher counter</dt><dd>{details.journalVoucherCounter}</dd></div>}
             </dl>
           </>
         )}
