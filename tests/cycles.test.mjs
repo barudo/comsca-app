@@ -44,6 +44,7 @@ test("cycle details retain API amounts and text for display and draft editing", 
       interest_rate: "3.000000", interest_method: "SIMPLE", starting_subscription: "500.00",
       maximum_monthly_shares: 10, cost_per_share: "100.00", absence_penalty: 0,
       required_monthly_contribution: "25.50",
+      receipt_counter: 0, disbursement_voucher_counter: "12", journal_voucher_counter: 34,
     }],
   }));
   assert.deepEqual(await fetchCycles("access", "cebu"), [{
@@ -51,6 +52,7 @@ test("cycle details retain API amounts and text for display and draft editing", 
       name: "2026 to 2027", description: "Community savings", interestRate: "3.000000",
       interestType: "simple", startingSubscription: "500.00", maximumMonthlyShares: 10,
       costPerShare: "100.00", absencePenalty: "0", requiredMonthlyContribution: "25.50",
+      receiptCounter: 0, disbursementVoucherCounter: 12, journalVoucherCounter: 34,
     },
   }]);
 });
@@ -112,12 +114,14 @@ const draftDetails = {
   name: "2026 to 2027", description: "Shared funds", interestRate: "3",
   interestType: "simple", startingSubscription: "500.00", maximumMonthlyShares: 10,
   costPerShare: "100.00", absencePenalty: "0", requiredMonthlyContribution: "25.50",
+  receiptCounter: 0, disbursementVoucherCounter: 12, journalVoucherCounter: 34,
 };
 const draftPayload = {
   name: "2026 to 2027", description: "Shared funds", interest_rate: "3",
   interest_period: "MONTHLY", interest_method: "SIMPLE", starting_subscription: "500.00",
   maximum_monthly_shares: 10, cost_per_share: "100.00", absence_penalty: "0",
   required_monthly_contribution: "25.50",
+  receipt_counter: 0, disbursement_voucher_counter: 12, journal_voucher_counter: 34,
 };
 
 test("draft edits PUT all form fields to the scoped cycle endpoint", async (t) => {

@@ -27,6 +27,9 @@ export type DraftDetails = {
   costPerShare: string;
   absencePenalty: string;
   requiredMonthlyContribution: string;
+  receiptCounter: number;
+  disbursementVoucherCounter: number;
+  journalVoucherCounter: number;
 };
 
 export type DisplayCycle = Cycle;

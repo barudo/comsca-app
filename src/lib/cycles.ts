@@ -47,6 +47,9 @@ export function draftCyclePayload(details: DraftDetails) {
     cost_per_share: details.costPerShare,
     absence_penalty: details.absencePenalty,
     required_monthly_contribution: details.requiredMonthlyContribution,
+    receipt_counter: details.receiptCounter,
+    disbursement_voucher_counter: details.disbursementVoucherCounter,
+    journal_voucher_counter: details.journalVoucherCounter,
   };
 }
 
@@ -92,6 +95,18 @@ export async function fetchCycles(accessToken: string, groupSlug: string, signal
     const shares = fields.maximum_monthly_shares;
     if ((typeof shares === "number" || typeof shares === "string" && shares.trim() !== "") && Number.isSafeInteger(Number(shares))) {
       details.maximumMonthlyShares = Number(shares);
+    }
+    const counters = {
+      receipt_counter: "receiptCounter",
+      disbursement_voucher_counter: "disbursementVoucherCounter",
+      journal_voucher_counter: "journalVoucherCounter",
+    } as const;
+    for (const [source, target] of Object.entries(counters)) {
+      const value = fields[source];
+      if ((typeof value === "number" || typeof value === "string" && value.trim() !== "") &&
+        Number.isSafeInteger(Number(value)) && Number(value) >= 0) {
+        details[target] = Number(value);
+      }
     }
     const method = String(fields.interest_method ?? fields.interest_type ?? "").toUpperCase();
     if (method === "COMPOUND" || method === "COMPOUNDED") details.interestType = "compounded";
