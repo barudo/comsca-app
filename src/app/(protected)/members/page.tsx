@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { MemberLoginPanel } from "@/components/member-login-panel";
 import { AddMemberPanel } from "@/components/add-member-panel";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
-import { addMembersToCurrentCycle, fetchMembers, type Member } from "@/lib/members";
+import { addMembersToCurrentCycle, type Member } from "@/lib/members";
+import { useMembers } from "@/components/members-provider";
 import { canViewMembers } from "@/lib/auth";
 
 function MembersTable({ accessToken, groupSlug, onEdit }: { accessToken: string; groupSlug: string; onEdit?: (member: Member, trigger: HTMLButtonElement) => void }) {
-  const [members, setMembers] = useState<Member[] | null>(null);
-  const [error, setError] = useState(false);
-  const [attempt, setAttempt] = useState(0);
+  const { snapshot, error, refreshMembers } = useMembers();
+  const members = snapshot?.members ?? null;
   const [loginSelection, setLoginSelection] = useState<{ member: Member; trigger: HTMLButtonElement } | null>(null);
   const [loginEnabled, setLoginEnabled] = useState<Array<string | number>>([]);
   const [notice, setNotice] = useState("");
@@ -21,25 +21,10 @@ function MembersTable({ accessToken, groupSlug, onEdit }: { accessToken: string;
   const addingRef = useRef(false);
   const [enrollmentError, setEnrollmentError] = useState("");
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchMembers(accessToken, groupSlug, controller.signal)
-      .then((users) => {
-        if (!controller.signal.aborted) {
-          setMembers(users);
-          setSelectedRows(new Set());
-        }
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setError(true);
-      });
-    return () => controller.abort();
-  }, [accessToken, groupSlug, attempt]);
-
   if (error) return (
     <div className="members-feedback">
       <p role="alert">Unable to load members. Please try again.</p>
-      <button className="text-button" onClick={() => { setError(false); setAttempt((value) => value + 1); }}>
+      <button className="text-button" onClick={() => { setSelectedRows(new Set()); void refreshMembers(); }}>
         Try again
       </button>
     </div>
@@ -62,7 +47,7 @@ function MembersTable({ accessToken, groupSlug, onEdit }: { accessToken: string;
       await addMembersToCurrentCycle(accessToken, groupSlug, users);
       setSelectedRows(new Set());
       setNotice(`${users.length} ${users.length === 1 ? "member added" : "members added"} to the current cycle.`);
-      setAttempt((value) => value + 1);
+      void refreshMembers();
     } catch (cause) {
       setEnrollmentError(cause instanceof Error ? cause.message : "Unable to add members to the current cycle. Please try again.");
     } finally {
@@ -143,6 +128,7 @@ export default function MembersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | undefined>();
   const formTrigger = useRef<HTMLButtonElement>(null);
+  const { refreshMembers } = useMembers();
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
   const addButton = useRef<HTMLButtonElement>(null);
@@ -175,7 +161,7 @@ export default function MembersPage() {
         key={`${subdomain}:${session.access_token}`}
         accessToken={session.access_token} groupSlug={subdomain} returnFocus={formTrigger} member={editingMember}
         onClose={() => setShowForm(false)}
-        onCreated={() => { setShowForm(false); setNotice(editingMember ? "Member updated." : "Member added."); setRevision((value) => value + 1); }}
+        onCreated={() => { setShowForm(false); setNotice(editingMember ? "Member updated." : "Member added."); setRevision((value) => value + 1); void refreshMembers(); }}
       />}
     </main>
   );

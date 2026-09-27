@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { addMembersToCurrentCycle, enableMemberLogin, updateMember, createMember, fetchActiveCycleMembers, fetchMembers } from "../src/lib/members.ts";
+import { addMembersToCurrentCycle, enableMemberLogin, updateMember, createMember, fetchActiveCycleMembers, fetchMembers, fetchMembersSnapshot, getActiveCycleMembers } from "../src/lib/members.ts";
 
 test("bulk cycle enrollment posts selected user IDs with community authentication", async (t) => {
   t.mock.method(globalThis, "fetch", async (url, options) => {
@@ -44,7 +44,7 @@ test("business refuses mismatched cycles and unverifiable membership flags", asy
     { success: true, current_cycle_id: null, users: [] },
     { success: true, users: [] },
     { success: true, current_cycle_id: 7, users: [{ first_name: "Maria", family_name: null }] },
-    { success: true, current_cycle_id: 7, users: [{ is_current_cycle_member: "true" }] },
+    { success: true, current_cycle_id: 7, users: [{ first_name: "Maria", family_name: null, is_current_cycle_member: "true" }] },
   ]) {
     fetch.mock.mockImplementation(async () => Response.json(body));
     await assert.rejects(fetchActiveCycleMembers("access", "cebu", 7), /verify|verified/);
@@ -164,4 +164,20 @@ test("login provisioning validates password length and surfaces API failures", a
   await assert.rejects(enableMemberLogin("access", "cebu", 42, "界".repeat(25)), /72 UTF-8 bytes/);
   assert.equal(fetch.mock.callCount(), 0);
   await assert.rejects(enableMemberLogin("access", "cebu", 42, "test-password"), /Login already exists/);
+});
+
+
+test("one shared member snapshot supports all members and current-cycle views without another request", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({
+    success: true, current_cycle_id: 7, users: [
+      { id: 1, first_name: "Maria", family_name: null, is_current_cycle_member: true },
+      { id: 2, first_name: "Juan", family_name: null, is_current_cycle_member: false },
+    ],
+  }));
+  const snapshot = await fetchMembersSnapshot("access", "cebu");
+  assert.equal(snapshot.members.length, 2);
+  assert.deepEqual(getActiveCycleMembers(snapshot, "7").map((member) => member.id), [1]);
+  assert.throws(() => getActiveCycleMembers(snapshot, 8), /verified/);
+  assert.equal(snapshot.members.length, 2);
+  assert.equal(fetch.mock.callCount(), 1);
 });

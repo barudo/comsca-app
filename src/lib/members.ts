@@ -105,22 +105,30 @@ function parseMembers(users: unknown[]): Member[] {
   });
 }
 
-export async function fetchMembers(accessToken: string, groupSlug: string, signal?: AbortSignal): Promise<Member[]> {
+export type MembersSnapshot = { members: Member[]; currentCycleId: string | number | null };
+
+export async function fetchMembersSnapshot(accessToken: string, groupSlug: string, signal?: AbortSignal): Promise<MembersSnapshot> {
   const body = await requestMembers(accessToken, groupSlug, signal);
-  return parseMembers(body.users);
+  return {
+    members: parseMembers(body.users),
+    currentCycleId: typeof body.current_cycle_id === "string" || typeof body.current_cycle_id === "number" ? body.current_cycle_id : null,
+  };
+}
+
+export async function fetchMembers(accessToken: string, groupSlug: string, signal?: AbortSignal): Promise<Member[]> {
+  return (await fetchMembersSnapshot(accessToken, groupSlug, signal)).members;
+}
+
+export function getActiveCycleMembers(snapshot: MembersSnapshot, cycleId: string | number): Member[] {
+  if (snapshot.currentCycleId === null || String(snapshot.currentCycleId) !== String(cycleId)) {
+    throw new Error("The current cycle has changed or could not be verified. Please try again.");
+  }
+  if (snapshot.members.some((member) => typeof member.isCurrentCycleMember !== "boolean")) {
+    throw new Error("Unable to verify active-cycle membership. Please try again.");
+  }
+  return snapshot.members.filter((member) => member.isCurrentCycleMember === true);
 }
 
 export async function fetchActiveCycleMembers(accessToken: string, groupSlug: string, cycleId: string | number, signal?: AbortSignal): Promise<Member[]> {
-  const body = await requestMembers(accessToken, groupSlug, signal);
-  if ((typeof body.current_cycle_id !== "string" && typeof body.current_cycle_id !== "number") ||
-    String(body.current_cycle_id) !== String(cycleId)) {
-    throw new Error("The current cycle has changed or could not be verified. Please try again.");
-  }
-  // Missing membership flags must not silently include all community members.
-  const users = body.users as unknown[];
-  if (users.some((user) => !user || typeof user !== "object" ||
-    !("is_current_cycle_member" in user) || typeof user.is_current_cycle_member !== "boolean")) {
-    throw new Error("Unable to verify active-cycle membership. Please try again.");
-  }
-  return parseMembers(users.filter((user) => (user as { is_current_cycle_member: boolean }).is_current_cycle_member));
+  return getActiveCycleMembers(await fetchMembersSnapshot(accessToken, groupSlug, signal), cycleId);
 }

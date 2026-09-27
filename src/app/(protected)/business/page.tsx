@@ -4,8 +4,9 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useCycles } from "@/components/cycle-provider";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
+import { useMembers } from "@/components/members-provider";
 import { canViewBusiness } from "@/lib/auth";
-import { fetchMembers, type Member } from "@/lib/members";
+import { getActiveCycleMembers, type Member } from "@/lib/members";
 
 const actions = ["Shares", "Loan Payments", "Disburse Loans", "Penalty"] as const;
 type BusinessAction = typeof actions[number];
@@ -108,29 +109,23 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   );
 }
 
-function BusinessMembers({ accessToken, groupSlug }: { accessToken: string; groupSlug: string }) {
-  const [members, setMembers] = useState<Member[] | null>(null);
-  const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
+function BusinessMembers({ cycleId }: { cycleId: string | number }) {
+  const { snapshot, error: loadError, refreshMembers } = useMembers();
   const [selection, setSelection] = useState<Selection | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    async function load() {
-      // Use the same community list as /members until cycle enrollment is ready.
-      const members = await fetchMembers(accessToken, groupSlug, controller.signal);
-      if (!controller.signal.aborted) setMembers(members);
+  let members: Member[] | null = null;
+  let error = loadError;
+  if (snapshot) {
+    try {
+      members = getActiveCycleMembers(snapshot, cycleId);
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Unable to verify current cycle members.";
     }
-    load().catch((error: unknown) => {
-      if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Unable to load members. Please try again.");
-    });
-    return () => controller.abort();
-  }, [accessToken, groupSlug, attempt]);
+  }
 
   if (error) return (
     <div className="members-feedback">
       <p role="alert">{error}</p>
-      <button type="button" className="text-button" onClick={() => { setError(""); setMembers(null); setAttempt((value) => value + 1); }}>Try again</button>
+      <button type="button" className="text-button" onClick={() => { void refreshMembers(); }}>Try again</button>
     </div>
   );
   if (!members) return <p className="members-feedback" role="status">Loading members…</p>;
@@ -138,13 +133,13 @@ function BusinessMembers({ accessToken, groupSlug }: { accessToken: string; grou
   return (
     <>
       <div className="business-cycle-summary">
-        <div><span className="eyebrow">BUSINESS</span><h2>Community members</h2></div>
+        <div><span className="eyebrow">BUSINESS</span><h2>Current cycle members</h2></div>
         <span>{members.length} {members.length === 1 ? "member" : "members"}</span>
       </div>
-      {members.length === 0 ? <p className="business-empty" role="status">No members found in this community.</p> : (
-        <div className="members-table-wrapper" role="region" aria-label="Community members" tabIndex={0}>
+      {members.length === 0 ? <p className="business-empty" role="status">No members enrolled in the current cycle.</p> : (
+        <div className="members-table-wrapper" role="region" aria-label="Current cycle members" tabIndex={0}>
           <table className="members-table business-table">
-            <caption>Community members</caption>
+            <caption>Current cycle members</caption>
             <thead><tr><th scope="col">#</th><th scope="col">Member</th><th scope="col">Phone</th><th scope="col">Actions</th></tr></thead>
             <tbody>{members.map((member, index) => (
               <tr key={member.id ?? index}>
@@ -167,6 +162,7 @@ function BusinessMembers({ accessToken, groupSlug }: { accessToken: string; grou
 export default function BusinessPage() {
   const { activeCycle, loading, error, refreshCycles } = useCycles();
   const { user, session } = useAuth();
+  const { revision } = useMembers();
   const { subdomain, group } = useCommunity();
 
   if (!canViewBusiness(user)) return (
@@ -181,7 +177,7 @@ export default function BusinessPage() {
     <main className="protected-content">
       <h1>Business</h1>
       <p>Shares, loan payments, loan disbursements, and penalties for members of {group?.name || subdomain || "your COMSCA community"}.</p>
-      {session && subdomain ? <BusinessMembers key={`${subdomain}:${session.access_token}`} accessToken={session.access_token} groupSlug={subdomain} /> : <p role="status">Please sign in through your community’s URL to view business.</p>}
+      {session && subdomain ? <BusinessMembers key={`${subdomain}:${session.access_token}:${activeCycle.id}:${revision}`} cycleId={activeCycle.id} /> : <p role="status">Please sign in through your community’s URL to view business.</p>}
     </main>
   );
 }

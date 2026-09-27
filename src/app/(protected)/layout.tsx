@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { MembersProvider } from "@/components/members-provider";
 import { CycleProvider } from "@/components/cycle-provider";
 import { ProtectedNavigation } from "@/components/protected-navigation";
 import { useAuth } from "@/components/auth-provider";
@@ -24,5 +25,5 @@ function ProtectedContent({ children }: { children: ReactNode }) {
 }
 
 export default function ProtectedLayout({ children }: { children: ReactNode }) {
-  return <CycleProvider><ProtectedContent>{children}</ProtectedContent></CycleProvider>;
+  return <CycleProvider><MembersProvider><ProtectedContent>{children}</ProtectedContent></MembersProvider></CycleProvider>;
 }
