@@ -11,6 +11,23 @@ export type Member = {
 
 export type NewMember = { first_name: string; family_name: string; phone: string; address: string };
 
+export async function addMembersToCurrentCycle(accessToken: string, groupSlug: string, users: Array<string | number>) {
+  if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
+  if (!users.length) throw new Error("Select at least one member.");
+  const base = (process.env.NEXT_PUBLIC_API_URL ||
+    "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
+  const response = await fetch(`${base}/cycles/members`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "x-group-slug": groupSlug, "Content-Type": "application/json" },
+    body: JSON.stringify({ users }),
+    signal: AbortSignal.timeout(15000),
+  });
+  const body = await response.json();
+  if (!response.ok || body?.success !== true) {
+    throw new Error(typeof body?.error === "string" ? body.error : "Unable to add members to the current cycle. Please try again.");
+  }
+}
+
 async function saveMember(accessToken: string, groupSlug: string, member: NewMember, id?: string | number) {
   if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
   const base = (process.env.NEXT_PUBLIC_API_URL ||

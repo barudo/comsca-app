@@ -5,7 +5,7 @@ import { MemberLoginPanel } from "@/components/member-login-panel";
 import { AddMemberPanel } from "@/components/add-member-panel";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
-import { fetchMembers, type Member } from "@/lib/members";
+import { addMembersToCurrentCycle, fetchMembers, type Member } from "@/lib/members";
 import { canViewMembers } from "@/lib/auth";
 
 function MembersTable({ accessToken, groupSlug, onEdit }: { accessToken: string; groupSlug: string; onEdit?: (member: Member, trigger: HTMLButtonElement) => void }) {
@@ -15,12 +15,19 @@ function MembersTable({ accessToken, groupSlug, onEdit }: { accessToken: string;
   const [loginSelection, setLoginSelection] = useState<{ member: Member; trigger: HTMLButtonElement } | null>(null);
   const [loginEnabled, setLoginEnabled] = useState<Array<string | number>>([]);
   const [notice, setNotice] = useState("");
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [adding, setAdding] = useState(false);
+  const addingRef = useRef(false);
+  const [enrollmentError, setEnrollmentError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
     fetchMembers(accessToken, groupSlug, controller.signal)
       .then((users) => {
-        if (!controller.signal.aborted) setMembers(users);
+        if (!controller.signal.aborted) {
+          setMembers(users);
+          setSelectedRows(new Set());
+        }
       })
       .catch(() => {
         if (!controller.signal.aborted) setError(true);
@@ -39,18 +46,57 @@ function MembersTable({ accessToken, groupSlug, onEdit }: { accessToken: string;
   if (members === null) return <p className="members-feedback" role="status">Loading members…</p>;
   if (members.length === 0) return <p className="members-feedback" role="status">No members found in this community.</p>;
 
+  const selectableRows = members.flatMap((member, index) => member.id !== undefined ? [index] : []);
+  const allSelected = selectableRows.length > 0 && selectedRows.size === selectableRows.length;
+  async function addSelectedMembers() {
+    if (addingRef.current || !members || !selectedRows.size) return;
+    const users = members.flatMap((member, index) => selectedRows.has(index) && member.id !== undefined ? [member.id] : []);
+    addingRef.current = true;
+    setAdding(true);
+    setEnrollmentError("");
+    setNotice("");
+    try {
+      await addMembersToCurrentCycle(accessToken, groupSlug, users);
+      setSelectedRows(new Set());
+      setNotice(`${users.length} ${users.length === 1 ? "member added" : "members added"} to the current cycle.`);
+      setAttempt((value) => value + 1);
+    } catch (cause) {
+      setEnrollmentError(cause instanceof Error ? cause.message : "Unable to add members to the current cycle. Please try again.");
+    } finally {
+      addingRef.current = false;
+      setAdding(false);
+    }
+  }
+  const bulkActions = (
+    <div className="members-bulk-actions">
+      <button type="button" className="submit-button" disabled={adding || selectedRows.size === 0} onClick={() => void addSelectedMembers()}>{adding ? "Adding…" : "With Selected Add to Current Cycle"}</button>
+      <span role="status">{selectedRows.size} selected</span>
+    </div>
+  );
+
   return (
     <>
     {notice && <p role="status">{notice}</p>}
+    {bulkActions}
+    {enrollmentError && <p role="alert">{enrollmentError}</p>}
     <div className="members-table-wrapper group-members-wrapper" role="region" aria-label="Community members" tabIndex={0}>
       <table className="members-table group-members-table">
         <caption>{members.length} {members.length === 1 ? "member" : "members"}</caption>
         <thead>
-          <tr><th scope="col">#</th><th scope="col">Name</th><th scope="col">Phone</th>{onEdit && <th scope="col">Actions</th>}</tr>
+          <tr><th scope="col" className="member-selection-cell"><label className="member-select-all"><input type="checkbox" aria-label="Select all members" disabled={adding || selectableRows.length === 0} checked={allSelected} ref={(input) => { if (input) input.indeterminate = selectedRows.size > 0 && !allSelected; }} onChange={(event) => setSelectedRows(event.target.checked ? new Set(selectableRows) : new Set())} /><span>Select all</span></label></th><th scope="col">#</th><th scope="col">Name</th><th scope="col">Phone</th>{onEdit && <th scope="col">Actions</th>}</tr>
         </thead>
         <tbody>
           {members.map((member, index) => (
             <tr key={member.id ?? index}>
+              <td className="member-selection-cell"><input type="checkbox" aria-label={`Select ${member.name || `member ${index + 1}`}`} disabled={adding || member.id === undefined} checked={selectedRows.has(index)} onChange={(event) => {
+                const checked = event.target.checked;
+                setSelectedRows((previous) => {
+                  const next = new Set(previous);
+                  if (checked) next.add(index);
+                  else next.delete(index);
+                  return next;
+                });
+              }} /></td>
               <td className="member-row-number">{index + 1}</td><th scope="row" className="member-row-name">{member.name || "—"}</th><td className="member-row-phone">{member.phone || "—"}</td>
               {onEdit && <td className="member-row-actions"><div className="member-actions"><button type="button" className="member-edit-button" aria-label={`Edit ${member.name || "member"}`} title="Edit member" disabled={member.id === undefined} onClick={(event) => onEdit(member, event.currentTarget)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m16 3 5 5M4 20l4-1L21 6a2.1 2.1 0 0 0-3-3L5 16l-1 4Z" /></svg>
@@ -67,6 +113,7 @@ function MembersTable({ accessToken, groupSlug, onEdit }: { accessToken: string;
         </tbody>
       </table>
     </div>
+    {bulkActions}
     {loginSelection && <MemberLoginPanel member={loginSelection.member} trigger={loginSelection.trigger} accessToken={accessToken} groupSlug={groupSlug} onClose={() => setLoginSelection(null)} onSaved={() => {
       if (loginSelection.member.id !== undefined) setLoginEnabled((ids) => [...ids, loginSelection.member.id!]);
       setNotice(`Login enabled for ${loginSelection.member.name}.`);

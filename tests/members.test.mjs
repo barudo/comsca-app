@@ -1,6 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { enableMemberLogin, updateMember, createMember, fetchActiveCycleMembers, fetchMembers } from "../src/lib/members.ts";
+import { addMembersToCurrentCycle, enableMemberLogin, updateMember, createMember, fetchActiveCycleMembers, fetchMembers } from "../src/lib/members.ts";
+
+test("bulk cycle enrollment posts selected user IDs with community authentication", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.ok(url.endsWith("/api/v1/cycles/members"));
+    assert.equal(options.method, "POST");
+    assert.equal(options.headers.Authorization, "Bearer access");
+    assert.equal(options.headers["x-group-slug"], "cebu");
+    assert.equal(options.headers["Content-Type"], "application/json");
+    assert.deepEqual(JSON.parse(options.body), { users: [1, "2"] });
+    return Response.json({ success: true });
+  });
+  await addMembersToCurrentCycle("access", "cebu", [1, "2"]);
+});
+
+test("bulk enrollment rejects empty selection and surfaces backend errors", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({ success: false, error: "No current cycle." }, { status: 409 }));
+  await assert.rejects(addMembersToCurrentCycle("access", "cebu", []), /Select at least one member/);
+  assert.equal(fetch.mock.callCount(), 0);
+  await assert.rejects(addMembersToCurrentCycle("access", "cebu", [1]), /No current cycle/);
+});
 
 test("business lists only members enrolled in the verified active cycle", async (t) => {
   t.mock.method(globalThis, "fetch", async (url, options) => {

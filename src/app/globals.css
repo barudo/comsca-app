@@ -653,13 +653,23 @@ h1 > span {
   font-weight: 500;
 }
 .member-actions { display: flex; align-items: center; gap: 8px; }
+.members-bulk-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.members-bulk-actions .submit-button { width: auto; }
+.members-bulk-actions > span { color: var(--muted); font-size: 14px; }
+.members-table .member-selection-cell { min-width: 44px; width: 44px; }
+.member-selection-cell input { width: 20px; height: 20px; margin: 0; cursor: pointer; accent-color: var(--blue); }
+.member-select-all { display: flex; align-items: center; gap: 8px; }
+.member-select-all span { white-space: nowrap; }
 @media (max-width: 600px) {
   .group-members-wrapper { overflow-x: visible; }
-  .group-members-table thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
+  .group-members-table thead { display: block; }
+  .group-members-table thead th:not(.member-selection-cell) { display: none; }
+  .group-members-table thead .member-selection-cell { display: block; width: auto; border-top: 1px solid var(--line); }
   .group-members-table tbody, .group-members-table tr { display: block; }
   .group-members-table tbody tr { padding: 16px 20px; border-top: 1px solid var(--line); }
   .group-members-table tbody th, .group-members-table tbody td { display: block; padding: 0; border: 0; min-width: 0; }
   .group-members-table .member-row-number { display: none; }
+  .group-members-table tbody .member-selection-cell { float: right; width: auto; }
   .group-members-table .member-row-name { font-weight: 600; }
   .group-members-table .member-row-phone { margin-top: 6px; color: var(--muted); }
   .group-members-table .member-row-actions { margin-top: 12px; }
