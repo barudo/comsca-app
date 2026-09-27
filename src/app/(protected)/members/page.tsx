@@ -16,6 +16,7 @@ function MembersTable({ accessToken, groupSlug, onEdit }: { accessToken: string;
   const [loginEnabled, setLoginEnabled] = useState<Array<string | number>>([]);
   const [notice, setNotice] = useState("");
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [showCycleMembers, setShowCycleMembers] = useState(false);
   const [adding, setAdding] = useState(false);
   const addingRef = useRef(false);
   const [enrollmentError, setEnrollmentError] = useState("");
@@ -46,7 +47,9 @@ function MembersTable({ accessToken, groupSlug, onEdit }: { accessToken: string;
   if (members === null) return <p className="members-feedback" role="status">Loading members…</p>;
   if (members.length === 0) return <p className="members-feedback" role="status">No members found in this community.</p>;
 
-  const selectableRows = members.flatMap((member, index) => member.id !== undefined ? [index] : []);
+  const visibleRows = members.map((member, index) => ({ member, index }))
+    .filter(({ member }) => !showCycleMembers || member.isCurrentCycleMember === true);
+  const selectableRows = visibleRows.flatMap(({ member, index }) => member.id !== undefined ? [index] : []);
   const allSelected = selectableRows.length > 0 && selectedRows.size === selectableRows.length;
   async function addSelectedMembers() {
     if (addingRef.current || !members || !selectedRows.size) return;
@@ -77,17 +80,28 @@ function MembersTable({ accessToken, groupSlug, onEdit }: { accessToken: string;
   return (
     <>
     {notice && <p role="status">{notice}</p>}
-    {bulkActions}
+    <div className="members-toolbar">
+      {bulkActions}
+      <label className="members-cycle-filter">
+        <span>Show All</span>
+        <input type="checkbox" role="switch" aria-label="Show cycle members" checked={showCycleMembers} disabled={adding} onChange={(event) => {
+          setShowCycleMembers(event.target.checked);
+          setSelectedRows(new Set());
+        }} />
+        <span>Show cycle members</span>
+      </label>
+    </div>
     {enrollmentError && <p role="alert">{enrollmentError}</p>}
     <div className="members-table-wrapper group-members-wrapper" role="region" aria-label="Community members" tabIndex={0}>
       <table className="members-table group-members-table">
-        <caption>{members.length} {members.length === 1 ? "member" : "members"}</caption>
+        <caption>{visibleRows.length} {visibleRows.length === 1 ? "member" : "members"}</caption>
         <thead>
           <tr><th scope="col" className="member-selection-cell"><label className="member-select-all"><input type="checkbox" aria-label="Select all members" disabled={adding || selectableRows.length === 0} checked={allSelected} ref={(input) => { if (input) input.indeterminate = selectedRows.size > 0 && !allSelected; }} onChange={(event) => setSelectedRows(event.target.checked ? new Set(selectableRows) : new Set())} /><span>Select all</span></label></th><th scope="col">#</th><th scope="col">Name</th><th scope="col">Phone</th>{onEdit && <th scope="col">Actions</th>}</tr>
         </thead>
         <tbody>
-          {members.map((member, index) => (
-            <tr key={member.id ?? index}>
+          {visibleRows.length === 0 && <tr><td colSpan={onEdit ? 5 : 4}><span role="status">No current cycle members found.</span></td></tr>}
+          {visibleRows.map(({ member, index }, visibleIndex) => (
+            <tr key={member.id ?? index} className={!showCycleMembers && member.isCurrentCycleMember === true ? "member-current-cycle" : undefined}>
               <td className="member-selection-cell"><input type="checkbox" aria-label={`Select ${member.name || `member ${index + 1}`}`} disabled={adding || member.id === undefined} checked={selectedRows.has(index)} onChange={(event) => {
                 const checked = event.target.checked;
                 setSelectedRows((previous) => {
@@ -97,7 +111,7 @@ function MembersTable({ accessToken, groupSlug, onEdit }: { accessToken: string;
                   return next;
                 });
               }} /></td>
-              <td className="member-row-number">{index + 1}</td><th scope="row" className="member-row-name">{member.name || "—"}</th><td className="member-row-phone">{member.phone || "—"}</td>
+              <td className="member-row-number">{visibleIndex + 1}</td><th scope="row" className="member-row-name">{member.name || "—"}</th><td className="member-row-phone">{member.phone || "—"}</td>
               {onEdit && <td className="member-row-actions"><div className="member-actions"><button type="button" className="member-edit-button" aria-label={`Edit ${member.name || "member"}`} title="Edit member" disabled={member.id === undefined} onClick={(event) => onEdit(member, event.currentTarget)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m16 3 5 5M4 20l4-1L21 6a2.1 2.1 0 0 0-3-3L5 16l-1 4Z" /></svg>
               </button>
