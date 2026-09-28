@@ -34,6 +34,8 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const [capitalAccountId, setCapitalAccountId] = useState("");
   const [loanFundsAccountId, setLoanFundsAccountId] = useState("");
   const [loanAccountId, setLoanAccountId] = useState("");
+  const [disbursementLoanAccountId, setDisbursementLoanAccountId] = useState("");
+  const [disbursementFundsAccountId, setDisbursementFundsAccountId] = useState("");
   const [penaltyFundsAccountId, setPenaltyFundsAccountId] = useState("");
   const [penaltyIncomeAccountId, setPenaltyIncomeAccountId] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
@@ -44,6 +46,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const [amount, setAmount] = useState("");
   const [penaltyAmount, setPenaltyAmount] = useState(activeCycle?.details?.absencePenalty ?? "");
   const currentAction = selection.action === "Shares and Payments" ? paymentOption : selection.action;
+  const isDisbursement = currentAction === "Disburse Loans";
   const isSharePurchase = currentAction === "Share purchase";
   const isLoanPayment = currentAction === "Pay Loan";
   const isPenaltyPayment = currentAction === "Pay Penalty";
@@ -59,13 +62,13 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const queuedLoanCents = items.reduce((total, item) => total + (item.type === "Pay Loan" ? item.amountCents : 0), 0);
   const remainingLoanAmount = (previewRemainingBalance * 100 - queuedLoanCents) / 100;
 
-  const debitAccount = accounts?.find((account) => String(account.id) === (isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId) && account.type === "ASSET");
-  const creditAccount = accounts?.find((account) => String(account.id) === (isPenaltyPayment ? penaltyIncomeAccountId : isLoanPayment ? loanAccountId : capitalAccountId) && account.type === (isSharePurchase ? "EQUITY" : "ASSET"));
+  const debitAccount = accounts?.find((account) => String(account.id) === (isDisbursement ? disbursementLoanAccountId : isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId) && account.type === "ASSET");
+  const creditAccount = accounts?.find((account) => String(account.id) === (isDisbursement ? disbursementFundsAccountId : isPenaltyPayment ? penaltyIncomeAccountId : isLoanPayment ? loanAccountId : capitalAccountId) && account.type === (isSharePurchase ? "EQUITY" : "ASSET"));
   const accessToken = session?.access_token;
   const cycleId = activeCycle?.id;
 
   useEffect(() => {
-    if (!isCheckout || !accessToken || !subdomain || cycleId === undefined) return;
+    if ((!isCheckout && !isDisbursement) || !accessToken || !subdomain || cycleId === undefined) return;
     const controller = new AbortController();
     fetchCycleAccounts(accessToken, subdomain, cycleId, controller.signal).then((accounts) => {
       if (!controller.signal.aborted) setAccounts(accounts);
@@ -73,7 +76,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
       if (!controller.signal.aborted) setAccountsError(cause instanceof Error ? cause.message : "Unable to load cycle accounts.");
     });
     return () => controller.abort();
-  }, [isCheckout, accessToken, subdomain, cycleId, accountsAttempt]);
+  }, [isCheckout, isDisbursement, accessToken, subdomain, cycleId, accountsAttempt]);
 
   function updateShareCount(value: string) {
     setShareCount(value);
@@ -107,6 +110,10 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
     if (checkoutInFlight.current) return;
     setCheckoutError("");
     const value = isSharePurchase ? Number(sharesAmount) : isPenalty ? Number(penaltyAmount) : Number(amount);
+    if (isDisbursement && (!debitAccount || !creditAccount || accountsError)) {
+      setNotice("Select a loan account and a funds disbursement account.");
+      return;
+    }
     if (isCheckout) {
       const amountCents = Math.round(value * 100);
       if (!Number.isSafeInteger(amountCents) || amountCents < 0 || !Number.isSafeInteger(totalCents + amountCents)) {
@@ -126,7 +133,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
       setNotice(`${paymentOption} added to checkout.`);
       return;
     }
-    setNotice(`${currentAction} preview: ${pesos(value)} for ${selection.member.name || "unnamed member"}. No transaction has been saved.`);
+    setNotice(`${currentAction} preview: ${pesos(value)} for ${selection.member.name || "unnamed member"}.${isDisbursement ? ` Debit: ${debitAccount?.name}. Credit: ${creditAccount?.name}.` : ""} No transaction has been saved.`);
   }
 
   async function checkout() {
@@ -142,9 +149,8 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
     try {
       const entries: PaymentEntry[] = items.map((item) => {
         if (!item.debitAccount || !item.creditAccount) throw new Error("Choose debit and credit accounts for every payment.");
-        if (item.type === "Pay Penalty") throw new Error("The penalty transaction type has not been configured yet.");
         return {
-          type: item.type === "Share purchase" ? "BUY_SHARE" : "LOAN_PAYMENT",
+          type: item.type === "Share purchase" ? "BUY_SHARE" : item.type === "Pay Penalty" ? "PENALTY_PAYMENT" : "LOAN_PAYMENT",
           debit: String(item.debitAccount.id),
           credit: String(item.creditAccount.id),
           amount: `${Math.floor(item.amountCents / 100)}.${String(item.amountCents % 100).padStart(2, "0")}`,
@@ -211,18 +217,18 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
             </div>
           </>
         )}
-        {(isSharePurchase || isLoanPayment || isPenaltyPayment) && (accountsError ? (
+        {(isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement) && (accountsError ? (
           <div><p role="alert">{accountsError}</p><button type="button" className="text-button" onClick={() => { setAccountsError(""); setAccounts(null); setAccountsAttempt((value) => value + 1); }}>Try again</button></div>
         ) : accounts === null ? <p role="status">Loading cycle accounts…</p> : (
-          <PaymentAccounts accounts={accounts} creditType={isSharePurchase ? "EQUITY" : "ASSET"} creditLabel={isPenaltyPayment ? "Penalty Income Account" : isLoanPayment ? "Loan Account" : "Share Capital Account"}
-            fundsAccountId={isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId} creditAccountId={isPenaltyPayment ? penaltyIncomeAccountId : isLoanPayment ? loanAccountId : capitalAccountId}
-            onFundsAccountChange={(id) => { (isPenaltyPayment ? setPenaltyFundsAccountId : isLoanPayment ? setLoanFundsAccountId : setFundsAccountId)(id); setNotice(""); }}
-            onCreditAccountChange={(id) => { (isPenaltyPayment ? setPenaltyIncomeAccountId : isLoanPayment ? setLoanAccountId : setCapitalAccountId)(id); setNotice(""); }} />
+          <PaymentAccounts accounts={accounts} debitLabel={isDisbursement ? "Loan Account" : "Funds Received Into"} creditType={isSharePurchase ? "EQUITY" : "ASSET"} creditLabel={isDisbursement ? "Funds Disbursed From" : isPenaltyPayment ? "Penalty Income Account" : isLoanPayment ? "Loan Account" : "Share Capital Account"}
+            fundsAccountId={isDisbursement ? disbursementLoanAccountId : isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId} creditAccountId={isDisbursement ? disbursementFundsAccountId : isPenaltyPayment ? penaltyIncomeAccountId : isLoanPayment ? loanAccountId : capitalAccountId}
+            onFundsAccountChange={(id) => { (isDisbursement ? setDisbursementLoanAccountId : isPenaltyPayment ? setPenaltyFundsAccountId : isLoanPayment ? setLoanFundsAccountId : setFundsAccountId)(id); setNotice(""); }}
+            onCreditAccountChange={(id) => { (isDisbursement ? setDisbursementFundsAccountId : isPenaltyPayment ? setPenaltyIncomeAccountId : isLoanPayment ? setLoanAccountId : setCapitalAccountId)(id); setNotice(""); }} />
         ))}
         </div>
         <div className="cycle-drawer-footer">
           {!isCheckout && <button type="button" className="cycle-cancel" disabled={checkingOut} onClick={onClose}>Cancel</button>}
-          <button type="submit" className="submit-button" disabled={(isCheckout && isLoanPayment && remainingLoanAmount <= 0) || ((isSharePurchase || isLoanPayment || isPenaltyPayment) && (!debitAccount || !creditAccount || !!accountsError))}>{isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : "Submit"}</button>
+          <button type="submit" className="submit-button" disabled={(isCheckout && isLoanPayment && remainingLoanAmount <= 0) || ((isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement) && (!debitAccount || !creditAccount || !!accountsError))}>{isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : "Submit"}</button>
         </div>
         </fieldset>
       </form>

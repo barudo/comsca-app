@@ -6,13 +6,14 @@ type Props = {
   accounts: LedgerAccount[];
   creditType: "ASSET" | "EQUITY";
   creditLabel: string;
+  debitLabel?: string;
   fundsAccountId: string;
   creditAccountId: string;
   onFundsAccountChange: (id: string) => void;
   onCreditAccountChange: (id: string) => void;
 };
 
-export function PaymentAccounts({ accounts, creditType, creditLabel, fundsAccountId, creditAccountId, onFundsAccountChange, onCreditAccountChange }: Props) {
+export function PaymentAccounts({ accounts, creditType, creditLabel, debitLabel = "Funds Received Into", fundsAccountId, creditAccountId, onFundsAccountChange, onCreditAccountChange }: Props) {
   const assetAccounts = accounts.filter((account) => account.type.trim().toUpperCase() === "ASSET");
   const creditAccounts = accounts.filter((account) => account.type.trim().toUpperCase() === creditType);
   const creditKind = creditType === "ASSET" ? "asset" : "equity";
@@ -20,7 +21,7 @@ export function PaymentAccounts({ accounts, creditType, creditLabel, fundsAccoun
   return (
     <div className="share-purchase-accounts">
       <div className="field">
-        <label htmlFor="payment-funds-account">Funds Received Into</label>
+        <label htmlFor="payment-funds-account">{debitLabel}</label>
         <select id="payment-funds-account" name="funds_account_id" required value={fundsAccountId} onChange={(event) => onFundsAccountChange(event.target.value)} aria-describedby="payment-funds-account-hint">
           <option value="">Select an asset account</option>
           {assetAccounts.map((account) => <option key={account.id} value={String(account.id)}>{account.code ? `${account.code} — ${account.name}` : account.name}</option>)}
