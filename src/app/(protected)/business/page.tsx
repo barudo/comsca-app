@@ -7,6 +7,7 @@ import { useCommunity } from "@/components/community-provider";
 import { useMembers } from "@/components/members-provider";
 import { PaymentAccounts } from "@/components/payment-accounts";
 import { fetchCycleAccounts, type LedgerAccount } from "@/lib/accounts";
+import { postPayments, type PaymentEntry } from "@/lib/payments";
 import { canViewBusiness } from "@/lib/auth";
 import { getActiveCycleMembers, type Member } from "@/lib/members";
 
@@ -49,6 +50,9 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const isPenalty = currentAction === "Pay Penalty" || currentAction === "Penalty";
   const [notice, setNotice] = useState("");
   const [items, setItems] = useState<CheckoutItem[]>([]);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const checkoutInFlight = useRef(false);
+  const [checkoutError, setCheckoutError] = useState("");
   const nextItemId = useRef(0);
   const isCheckout = selection.action === "Shares and Payments";
   const totalCents = items.reduce((total, item) => total + item.amountCents, 0);
@@ -100,6 +104,8 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (checkoutInFlight.current) return;
+    setCheckoutError("");
     const value = isSharePurchase ? Number(sharesAmount) : isPenalty ? Number(penaltyAmount) : Number(amount);
     if (isCheckout) {
       const amountCents = Math.round(value * 100);
@@ -123,15 +129,48 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
     setNotice(`${currentAction} preview: ${pesos(value)} for ${selection.member.name || "unnamed member"}. No transaction has been saved.`);
   }
 
+  async function checkout() {
+    if (checkoutInFlight.current || !items.length) return;
+    setCheckoutError("");
+    setNotice("");
+    if (!accessToken || !subdomain || cycleId === undefined || selection.member.id === undefined) {
+      setCheckoutError("A signed-in member and active cycle are required for checkout.");
+      return;
+    }
+    checkoutInFlight.current = true;
+    setCheckingOut(true);
+    try {
+      const entries: PaymentEntry[] = items.map((item) => {
+        if (!item.debitAccount || !item.creditAccount) throw new Error("Choose debit and credit accounts for every payment.");
+        if (item.type === "Pay Penalty") throw new Error("The penalty transaction type has not been configured yet.");
+        return {
+          type: item.type === "Share purchase" ? "BUY_SHARE" : "LOAN_PAYMENT",
+          debit: String(item.debitAccount.id),
+          credit: String(item.creditAccount.id),
+          amount: `${Math.floor(item.amountCents / 100)}.${String(item.amountCents % 100).padStart(2, "0")}`,
+        };
+      });
+      await postPayments(accessToken, subdomain, selection.member.id, cycleId, entries);
+      setItems([]);
+      setNotice(`Payments saved: ${pesos(totalCents / 100)} for ${selection.member.name || "unnamed member"}.`);
+    } catch (cause) {
+      setCheckoutError(cause instanceof Error ? cause.message : "Unable to complete checkout.");
+    } finally {
+      checkoutInFlight.current = false;
+      setCheckingOut(false);
+    }
+  }
+
   return (
-    <dialog ref={dialog} className="cycle-drawer" aria-labelledby="business-action-title business-member-name" aria-describedby="business-action-description" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+    <dialog ref={dialog} className="cycle-drawer" aria-labelledby="business-action-title business-member-name" aria-describedby="business-action-description" onCancel={(event) => { event.preventDefault(); if (!checkoutInFlight.current) onClose(); }}>
       <div className="cycle-drawer-header">
         <div><span className="eyebrow">MEMBER BUSINESS</span><h2 id="business-action-title">{selection.action}</h2></div>
-        <button className="cycle-close" type="button" aria-label="Close member action" onClick={onClose}>×</button>
+        <button className="cycle-close" type="button" aria-label="Close member action" disabled={checkingOut} onClick={onClose}>×</button>
       </div>
       <div className="business-selected-member"><span className="eyebrow">MEMBER</span><h3 id="business-member-name">{selection.member.name || "Unnamed member"}</h3></div>
-      <p id="business-action-description">Preview only. {(isLoanPayment || selection.action === "Disburse Loans") && "Loan amounts below are sample data. "}Submissions are not saved.</p>
+      <p id="business-action-description">{isCheckout ? "Add items below, then checkout to save payments." : "Preview only. Submissions are not saved."} {(isLoanPayment || selection.action === "Disburse Loans") && "Loan amounts below are sample data. "}</p>
       <form className="cycle-draft-form" onSubmit={handleSubmit}>
+        <fieldset className="business-payment-fields" disabled={checkingOut}>
         {selection.action === "Shares and Payments" && (
           <div className="business-payment-options" role="group" aria-label="Purchase or payment type">
             {paymentOptions.map((option) => (
@@ -182,9 +221,10 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         ))}
         </div>
         <div className="cycle-drawer-footer">
-          {!isCheckout && <button type="button" className="cycle-cancel" onClick={onClose}>Cancel</button>}
+          {!isCheckout && <button type="button" className="cycle-cancel" disabled={checkingOut} onClick={onClose}>Cancel</button>}
           <button type="submit" className="submit-button" disabled={(isCheckout && isLoanPayment && remainingLoanAmount <= 0) || ((isSharePurchase || isLoanPayment || isPenaltyPayment) && (!debitAccount || !creditAccount || !!accountsError))}>{isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : "Submit"}</button>
         </div>
+        </fieldset>
       </form>
       {isCheckout && (
         <section className="business-checkout" aria-labelledby="business-checkout-title">
@@ -199,7 +239,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
                   <tr key={item.id}>
                     <th scope="row">{item.type}{item.shares !== undefined && <span className="business-checkout-detail">{item.shares} {item.shares === 1 ? "share" : "shares"}</span>}{item.debitAccount && <span className="business-checkout-detail">Debit: {item.debitAccount.name}</span>}{item.creditAccount && <span className="business-checkout-detail">Credit: {item.creditAccount.name}</span>}</th>
                     <td>{pesos(item.amountCents / 100)}</td>
-                    <td><button type="button" className="text-button" aria-label={`Remove ${item.type} of ${pesos(item.amountCents / 100)}`} onClick={() => { setItems((current) => current.filter((entry) => entry.id !== item.id)); setNotice("Item removed from checkout."); }}>Remove</button></td>
+                    <td><button type="button" className="text-button" disabled={checkingOut} aria-label={`Remove ${item.type} of ${pesos(item.amountCents / 100)}`} onClick={() => { setItems((current) => current.filter((entry) => entry.id !== item.id)); setNotice("Item removed from checkout."); }}>Remove</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -207,11 +247,12 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
             </table>
           </div>
           <div className="cycle-drawer-footer">
-            <button type="button" className="cycle-cancel" onClick={onClose}>Cancel</button>
-            <button type="button" className="submit-button" disabled={items.length === 0} onClick={() => setNotice(`Checkout preview: ${items.length} ${items.length === 1 ? "item" : "items"} totaling ${pesos(totalCents / 100)} for ${selection.member.name || "unnamed member"}. No transaction has been saved.`)}>Checkout</button>
+            <button type="button" className="cycle-cancel" disabled={checkingOut} onClick={onClose}>Cancel</button>
+            <button type="button" className="submit-button" disabled={checkingOut || items.length === 0 || selection.member.id === undefined} onClick={() => void checkout()}>{checkingOut ? "Checking out…" : "Checkout"}</button>
           </div>
         </section>
       )}
+      {checkoutError && <p role="alert">{checkoutError}</p>}
       <p className="business-submit-notice" role="status" aria-live="polite">{notice}</p>
     </dialog>
   );
