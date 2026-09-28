@@ -735,6 +735,11 @@ h1 > span {
 .business-payment-options button { flex: 1 1 120px; min-height: 44px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--blue); font-weight: 600; }
 .business-payment-options button:hover { border-color: var(--blue); background: var(--pale); }
 .business-payment-options button[aria-pressed="true"] { border-color: var(--blue); background: var(--blue); color: #fff; }
+.business-checkout { margin-top: 32px; }
+.business-checkout .members-table-wrapper { margin-top: 12px; margin-bottom: 20px; }
+.business-checkout-table th, .business-checkout-table td { min-width: 0; padding: 12px; }
+.business-checkout-table tfoot { background: var(--pale); font-weight: 600; }
+.business-checkout-detail { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; font-weight: 400; }
 .business-table th:first-child, .business-table td:first-child { min-width: 48px; width: 48px; }
 .protected-shell {
   min-height: 100svh;

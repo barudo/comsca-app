@@ -11,6 +11,7 @@ import { getActiveCycleMembers, type Member } from "@/lib/members";
 const actions = ["Shares and Payments", "Disburse Loans", "Penalty"] as const;
 const paymentOptions = ["Share purchase", "Pay Loan", "Pay Penalty"] as const;
 type PaymentOption = typeof paymentOptions[number];
+type CheckoutItem = { id: number; type: PaymentOption; amountCents: number; shares?: number };
 type BusinessAction = typeof actions[number];
 type Selection = { action: BusinessAction; member: Member; trigger: HTMLButtonElement };
 const pricePerShare = 100;
@@ -33,6 +34,12 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const isLoanPayment = currentAction === "Pay Loan";
   const isPenalty = currentAction === "Pay Penalty" || currentAction === "Penalty";
   const [notice, setNotice] = useState("");
+  const [items, setItems] = useState<CheckoutItem[]>([]);
+  const nextItemId = useRef(0);
+  const isCheckout = selection.action === "Shares and Payments";
+  const totalCents = items.reduce((total, item) => total + item.amountCents, 0);
+  const queuedLoanCents = items.reduce((total, item) => total + (item.type === "Pay Loan" ? item.amountCents : 0), 0);
+  const remainingLoanAmount = (previewRemainingBalance * 100 - queuedLoanCents) / 100;
 
   function updateShareCount(value: string) {
     setShareCount(value);
@@ -64,6 +71,21 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const value = isSharePurchase ? Number(sharesAmount) : isPenalty ? Number(penaltyAmount) : Number(amount);
+    if (isCheckout) {
+      const amountCents = Math.round(value * 100);
+      if (!Number.isSafeInteger(amountCents) || amountCents < 0 || !Number.isSafeInteger(totalCents + amountCents)) {
+        setNotice("Enter a valid amount within the supported range.");
+        return;
+      }
+      if (isLoanPayment && amountCents + queuedLoanCents > previewRemainingBalance * 100) {
+        setNotice("Loan payments cannot exceed the remaining balance.");
+        return;
+      }
+      const item: CheckoutItem = { id: nextItemId.current++, type: paymentOption, amountCents, ...(isSharePurchase ? { shares: Number(shareCount) } : {}) };
+      setItems((current) => [...current, item]);
+      setNotice(`${paymentOption} added to checkout.`);
+      return;
+    }
     setNotice(`${currentAction} preview: ${pesos(value)} for ${selection.member.name || "unnamed member"}. No transaction has been saved.`);
   }
 
@@ -107,21 +129,47 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
           <>
             <dl className="business-loan-summary">
               <dt>{isLoanPayment ? "Remaining balance" : "Applied loan"} <span className="cycle-optional">(sample)</span></dt>
-              <dd>{pesos(isLoanPayment ? previewRemainingBalance : previewAppliedLoan)}</dd>
+              <dd>{pesos(isLoanPayment ? remainingLoanAmount : previewAppliedLoan)}</dd>
             </dl>
             <div className="field">
               <label htmlFor="business-loan-amount">{isLoanPayment ? "Payment amount (₱)" : "Loan to Disburse (₱)"}</label>
-              <input ref={firstInput} id="business-loan-amount" name="amount" type="number" min="0.01" max={isLoanPayment ? previewRemainingBalance : previewAppliedLoan} step="0.01" placeholder="0.00" required value={amount} onChange={(event) => { setAmount(event.target.value); setNotice(""); }} />
+              <input ref={firstInput} id="business-loan-amount" name="amount" type="number" min="0.01" max={isLoanPayment ? remainingLoanAmount : previewAppliedLoan} step="0.01" placeholder="0.00" required value={amount} onChange={(event) => { setAmount(event.target.value); setNotice(""); }} />
             </div>
           </>
         )}
         </div>
         <div className="cycle-drawer-footer">
-          <button type="button" className="cycle-cancel" onClick={onClose}>Cancel</button>
-          <button type="submit" className="submit-button">{isLoanPayment ? "Pay" : "Submit"}</button>
+          {!isCheckout && <button type="button" className="cycle-cancel" onClick={onClose}>Cancel</button>}
+          <button type="submit" className="submit-button" disabled={isCheckout && isLoanPayment && remainingLoanAmount <= 0}>{isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : "Submit"}</button>
         </div>
-        <p className="business-submit-notice" role="status" aria-live="polite">{notice}</p>
       </form>
+      {isCheckout && (
+        <section className="business-checkout" aria-labelledby="business-checkout-title">
+          <h3 id="business-checkout-title">Checkout items</h3>
+          <div className="members-table-wrapper">
+            <table className="members-table business-checkout-table">
+              <caption>{items.length} {items.length === 1 ? "item" : "items"}</caption>
+              <thead><tr><th scope="col">Item</th><th scope="col">Amount</th><th scope="col">Action</th></tr></thead>
+              <tbody>
+                {items.length === 0 && <tr><td colSpan={3}>Add a share purchase, loan payment, or penalty payment above.</td></tr>}
+                {items.map((item) => (
+                  <tr key={item.id}>
+                    <th scope="row">{item.type}{item.shares !== undefined && <span className="business-checkout-detail">{item.shares} {item.shares === 1 ? "share" : "shares"}</span>}</th>
+                    <td>{pesos(item.amountCents / 100)}</td>
+                    <td><button type="button" className="text-button" aria-label={`Remove ${item.type} of ${pesos(item.amountCents / 100)}`} onClick={() => { setItems((current) => current.filter((entry) => entry.id !== item.id)); setNotice("Item removed from checkout."); }}>Remove</button></td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot><tr><th scope="row">Total</th><td colSpan={2}>{pesos(totalCents / 100)}</td></tr></tfoot>
+            </table>
+          </div>
+          <div className="cycle-drawer-footer">
+            <button type="button" className="cycle-cancel" onClick={onClose}>Cancel</button>
+            <button type="button" className="submit-button" disabled={items.length === 0} onClick={() => setNotice(`Checkout preview: ${items.length} ${items.length === 1 ? "item" : "items"} totaling ${pesos(totalCents / 100)} for ${selection.member.name || "unnamed member"}. No transaction has been saved.`)}>Checkout</button>
+          </div>
+        </section>
+      )}
+      <p className="business-submit-notice" role="status" aria-live="polite">{notice}</p>
     </dialog>
   );
 }
