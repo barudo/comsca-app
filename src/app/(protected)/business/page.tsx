@@ -7,6 +7,7 @@ import { useCommunity } from "@/components/community-provider";
 import { useMembers } from "@/components/members-provider";
 import { PaymentAccounts } from "@/components/payment-accounts";
 import { fetchCycleAccounts, type LedgerAccount } from "@/lib/accounts";
+import { disburseLoan } from "@/lib/disbursements";
 import { postPayments, type PaymentEntry } from "@/lib/payments";
 import { canViewBusiness } from "@/lib/auth";
 import { getActiveCycleMembers, type Member } from "@/lib/members";
@@ -105,13 +106,36 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
     };
   }, [selection]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (checkoutInFlight.current) return;
     setCheckoutError("");
     const value = isSharePurchase ? Number(sharesAmount) : isPenalty ? Number(penaltyAmount) : Number(amount);
-    if (isDisbursement && (!debitAccount || !creditAccount || accountsError)) {
-      setNotice("Select a loan account and a funds disbursement account.");
+    if (isDisbursement) {
+      if (!accessToken || !subdomain || cycleId === undefined || selection.member.id === undefined || !debitAccount || !creditAccount || accountsError) {
+        setCheckoutError("Select a member, active cycle, loan account, and funds disbursement account.");
+        return;
+      }
+      checkoutInFlight.current = true;
+      setCheckingOut(true);
+      setNotice("");
+      try {
+        await disburseLoan(accessToken, subdomain, {
+          user_id: String(selection.member.id),
+          cycle_id: String(cycleId),
+          debit: String(debitAccount.id),
+          credit: String(creditAccount.id),
+          amount: value.toFixed(2),
+          description: "Member loan disbursement",
+        });
+        setAmount("");
+        setNotice(`Loan disbursement saved: ${pesos(value)} for ${selection.member.name || "unnamed member"}.`);
+      } catch (cause) {
+        setCheckoutError(cause instanceof Error ? cause.message : "Unable to disburse the loan.");
+      } finally {
+        checkoutInFlight.current = false;
+        setCheckingOut(false);
+      }
       return;
     }
     if (isCheckout) {
@@ -133,7 +157,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
       setNotice(`${paymentOption} added to checkout.`);
       return;
     }
-    setNotice(`${currentAction} preview: ${pesos(value)} for ${selection.member.name || "unnamed member"}.${isDisbursement ? ` Debit: ${debitAccount?.name}. Credit: ${creditAccount?.name}.` : ""} No transaction has been saved.`);
+    setNotice(`${currentAction} preview: ${pesos(value)} for ${selection.member.name || "unnamed member"}. No transaction has been saved.`);
   }
 
   async function checkout() {
@@ -174,7 +198,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         <button className="cycle-close" type="button" aria-label="Close member action" disabled={checkingOut} onClick={onClose}>×</button>
       </div>
       <div className="business-selected-member"><span className="eyebrow">MEMBER</span><h3 id="business-member-name">{selection.member.name || "Unnamed member"}</h3></div>
-      <p id="business-action-description">{isCheckout ? "Add items below, then checkout to save payments." : "Preview only. Submissions are not saved."} {(isLoanPayment || selection.action === "Disburse Loans") && "Loan amounts below are sample data. "}</p>
+      <p id="business-action-description">{isCheckout ? "Add items below, then checkout to save payments." : isDisbursement ? "Submit to record the loan disbursement." : "Preview only. Submissions are not saved."} {(isLoanPayment || selection.action === "Disburse Loans") && "Loan amounts below are sample data. "}</p>
       <form className="cycle-draft-form" onSubmit={handleSubmit}>
         <fieldset className="business-payment-fields" disabled={checkingOut}>
         {selection.action === "Shares and Payments" && (
@@ -228,7 +252,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         </div>
         <div className="cycle-drawer-footer">
           {!isCheckout && <button type="button" className="cycle-cancel" disabled={checkingOut} onClick={onClose}>Cancel</button>}
-          <button type="submit" className="submit-button" disabled={(isCheckout && isLoanPayment && remainingLoanAmount <= 0) || ((isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement) && (!debitAccount || !creditAccount || !!accountsError))}>{isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : "Submit"}</button>
+          <button type="submit" className="submit-button" disabled={(isDisbursement && selection.member.id === undefined) || (isCheckout && isLoanPayment && remainingLoanAmount <= 0) || ((isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement) && (!debitAccount || !creditAccount || !!accountsError))}>{isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : checkingOut ? "Submitting…" : "Submit"}</button>
         </div>
         </fieldset>
       </form>
