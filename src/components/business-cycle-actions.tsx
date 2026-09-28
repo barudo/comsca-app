@@ -77,7 +77,7 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, onClose 
         </div>}
         {error ? <div><p role="alert">{error}</p><button type="button" className="text-button" onClick={() => { setError(""); setAccounts(null); setAttempt((value) => value + 1); }}>Try again</button></div>
           : accounts === null ? <p role="status">Loading cycle accounts…</p>
-          : <PaymentAccounts accounts={accounts} debitLabel="Debit Account" creditLabel="Credit Account" creditType="INCOME" fundsAccountId={debitId} creditAccountId={creditId}
+          : <PaymentAccounts accounts={accounts} debitLabel={interest ? "Add Interest To" : "Charge To"} creditLabel={interest ? "Record Interest As" : "Record Contribution As"} creditType="INCOME" fundsAccountId={debitId} creditAccountId={creditId}
             onFundsAccountChange={(id) => { setDebitId(id); setNotice(""); }} onCreditAccountChange={(id) => { setCreditId(id); setNotice(""); }} />}
         <p className="cycle-field-hint">Preview only. This action is not connected yet.</p>
         <div className="cycle-drawer-footer">
