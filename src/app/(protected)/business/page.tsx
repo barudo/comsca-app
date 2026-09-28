@@ -367,7 +367,7 @@ export default function BusinessPage() {
     <main className="protected-content">
       <div className="members-heading business-heading">
         <h1>Business</h1>
-        {session && subdomain && <BusinessCycleActions key={`${subdomain}:${session.access_token}:${activeCycle.id}`} accessToken={session.access_token} groupSlug={subdomain} cycleId={activeCycle.id} />}
+        {session && subdomain && <BusinessCycleActions key={`${subdomain}:${session.access_token}:${activeCycle.id}`} accessToken={session.access_token} groupSlug={subdomain} cycleId={activeCycle.id} requiredMonthlyContribution={activeCycle.details?.requiredMonthlyContribution} />}
       </div>
       <p>Shares, loan payments, loan disbursements, and penalties for members of {group?.name || subdomain || "your COMSCA community"}.</p>
       {session && subdomain ? <BusinessMembers key={`${subdomain}:${session.access_token}:${activeCycle.id}:${revision}`} cycleId={activeCycle.id} /> : <p role="status">Please sign in through your community’s URL to view business.</p>}

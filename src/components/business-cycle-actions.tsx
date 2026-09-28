@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { chargeContribution } from "@/lib/contributions";
 import { PaymentAccounts } from "@/components/payment-accounts";
 import { fetchCycleAccounts, type LedgerAccount } from "@/lib/accounts";
 
 const actionLabels = {
   interest: "Apply Loan Interest",
-  contribution: "Charge Monthly Contribution",
+  contribution: "Charge Contribution",
 } as const;
 type Action = keyof typeof actionLabels;
 type Selection = { action: Action; trigger: HTMLButtonElement };
-type Context = { accessToken: string; groupSlug: string; cycleId: string | number };
+type Context = { accessToken: string; groupSlug: string; cycleId: string | number; requiredMonthlyContribution?: string };
 
-function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, onClose }: Context & { selection: Selection; onClose: () => void }) {
+function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, requiredMonthlyContribution, onClose }: Context & { selection: Selection; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const [accounts, setAccounts] = useState<LedgerAccount[] | null>(null);
@@ -21,10 +22,11 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, onClose 
   const [debitId, setDebitId] = useState("");
   const [creditId, setCreditId] = useState("");
   const [notice, setNotice] = useState("");
-  const [month, setMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  });
+  const [amount, setAmount] = useState(requiredMonthlyContribution ?? "");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const inFlight = useRef(false);
   const interest = selection.action === "interest";
   const debitName = interest ? "Loans Receivable" : "Contributions Receivable";
   const creditName = interest ? "Interest Income" : "Contribution Income";
@@ -57,33 +59,57 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, onClose 
     return () => controller.abort();
   }, [accessToken, groupSlug, cycleId, debitName, creditName, attempt]);
 
-  function confirm(event: FormEvent<HTMLFormElement>) {
+  async function confirm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!debit || !credit || error) return;
-    setNotice(`${actionLabels[selection.action]} preview${interest ? "" : ` for ${month}`}: debit ${debit.name}; credit ${credit.name}. No charges have been saved. This action is not connected yet.`);
+    if (!debit || !credit || error || inFlight.current || submitted) return;
+    if (interest) {
+      setNotice(`Apply Loan Interest preview: debit ${debit.name}; credit ${credit.name}. No charges have been saved. This action is not connected yet.`);
+      return;
+    }
+    if (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) {
+      setSubmitError("Enter a valid positive amount with up to two decimal places.");
+      return;
+    }
+    inFlight.current = true;
+    setSubmitting(true);
+    setSubmitError("");
+    setNotice("");
+    try {
+      await chargeContribution(accessToken, groupSlug, { amount: Number(amount).toFixed(2), debit: String(debit.id), credit: String(credit.id) });
+      setSubmitted(true);
+      setNotice("Contribution charged successfully.");
+    } catch (cause: unknown) {
+      setSubmitError(cause instanceof Error ? cause.message : "Unable to charge contribution.");
+    } finally {
+      inFlight.current = false;
+      setSubmitting(false);
+    }
   }
 
   return (
-    <dialog ref={dialog} className="cycle-drawer" aria-labelledby="cycle-action-title" aria-describedby="cycle-action-description" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+    <dialog ref={dialog} className="cycle-drawer" aria-labelledby="cycle-action-title" aria-describedby="cycle-action-description" onCancel={(event) => { event.preventDefault(); if (!inFlight.current) onClose(); }}>
       <div className="cycle-drawer-header">
-        <div><span className="eyebrow">BUSINESS</span><h2 id="cycle-action-title">{interest ? "Apply Interest to Outstanding Loans?" : "Charge Monthly Contributions?"}</h2></div>
-        <button ref={closeButton} type="button" className="cycle-close" aria-label="Close confirmation" onClick={onClose}>×</button>
+        <div><span className="eyebrow">BUSINESS</span><h2 id="cycle-action-title">{interest ? "Apply Interest to Outstanding Loans?" : "Charge Contribution"}</h2></div>
+        <button ref={closeButton} type="button" className="cycle-close" aria-label="Close confirmation" disabled={submitting} onClick={onClose}>×</button>
       </div>
-      <p id="cycle-action-description">{interest ? "This will calculate and apply interest to all eligible outstanding loans for the current cycle." : "This will add the required monthly contribution to all eligible members for the selected month."}</p>
+      <p id="cycle-action-description">{interest ? "This will calculate and apply interest to all eligible outstanding loans for the current cycle." : "This will add the required contribution to all eligible members."}</p>
       <form className="cycle-draft-form" onSubmit={confirm}>
-        {!interest && <div className="field">
-          <label htmlFor="contribution-month">Month</label>
-          <input id="contribution-month" type="month" required value={month} onChange={(event) => { setMonth(event.target.value); setNotice(""); }} />
-        </div>}
-        {error ? <div><p role="alert">{error}</p><button type="button" className="text-button" onClick={() => { setError(""); setAccounts(null); setAttempt((value) => value + 1); }}>Try again</button></div>
-          : accounts === null ? <p role="status">Loading cycle accounts…</p>
-          : <PaymentAccounts accounts={accounts} debitLabel={interest ? "Add Interest To" : "Charge To"} creditLabel={interest ? "Record Interest As" : "Record Contribution As"} creditType="INCOME" fundsAccountId={debitId} creditAccountId={creditId}
-            onFundsAccountChange={(id) => { setDebitId(id); setNotice(""); }} onCreditAccountChange={(id) => { setCreditId(id); setNotice(""); }} />}
-        <p className="cycle-field-hint">Preview only. This action is not connected yet.</p>
+        <fieldset className="business-payment-fields" disabled={submitting || submitted}>
+          {!interest && <div className="field">
+            <label htmlFor="contribution-amount">Amount (₱)</label>
+            <input id="contribution-amount" name="amount" type="number" min="0.01" step="0.01" inputMode="decimal" required value={amount} onChange={(event) => { setAmount(event.target.value); setSubmitError(""); }} />
+          </div>}
+          {error ? <div><p role="alert">{error}</p><button type="button" className="text-button" onClick={() => { setError(""); setAccounts(null); setAttempt((value) => value + 1); }}>Try again</button></div>
+            : accounts === null ? <p role="status">Loading cycle accounts…</p>
+            : <PaymentAccounts accounts={accounts} debitLabel={interest ? "Add Interest To" : "Charge To"} creditLabel={interest ? "Record Interest As" : "Record Contribution As"} creditType="INCOME" fundsAccountId={debitId} creditAccountId={creditId}
+              onFundsAccountChange={(id) => { setDebitId(id); setNotice(""); }} onCreditAccountChange={(id) => { setCreditId(id); setNotice(""); }} />}
+        </fieldset>
+        {interest && <p className="cycle-field-hint">Preview only. This action is not connected yet.</p>}
         <div className="cycle-drawer-footer">
-          <button type="button" className="cycle-cancel" onClick={onClose}>Cancel</button>
-          <button type="submit" className="submit-button" disabled={!debit || !credit || !!error}>{actionLabels[selection.action]}</button>
+          <button type="button" className="cycle-cancel" disabled={submitting} onClick={onClose}>{submitted ? "Close" : "Cancel"}</button>
+          <button type="submit" className="submit-button" disabled={!debit || !credit || !!error || submitting || submitted}>{submitting ? "Charging…" : actionLabels[selection.action]}</button>
         </div>
+        {submitError && <p role="alert">{submitError}</p>}
         <p className="business-submit-notice" role="status">{notice}</p>
       </form>
     </dialog>
