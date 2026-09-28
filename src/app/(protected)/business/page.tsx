@@ -8,7 +8,9 @@ import { useMembers } from "@/components/members-provider";
 import { canViewBusiness } from "@/lib/auth";
 import { getActiveCycleMembers, type Member } from "@/lib/members";
 
-const actions = ["Shares", "Loan Payments", "Disburse Loans", "Penalty"] as const;
+const actions = ["Shares and Payments", "Disburse Loans", "Penalty"] as const;
+const paymentOptions = ["Share purchase", "Pay Loan", "Pay Penalty"] as const;
+type PaymentOption = typeof paymentOptions[number];
 type BusinessAction = typeof actions[number];
 type Selection = { action: BusinessAction; member: Member; trigger: HTMLButtonElement };
 const pricePerShare = 100;
@@ -23,7 +25,13 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const firstInput = useRef<HTMLInputElement>(null);
   const [shareCount, setShareCount] = useState("1");
   const [sharesAmount, setSharesAmount] = useState("100.00");
-  const [amount, setAmount] = useState(selection.action === "Penalty" ? activeCycle?.details?.absencePenalty ?? "" : "");
+  const [paymentOption, setPaymentOption] = useState<PaymentOption>("Share purchase");
+  const [amount, setAmount] = useState("");
+  const [penaltyAmount, setPenaltyAmount] = useState(activeCycle?.details?.absencePenalty ?? "");
+  const currentAction = selection.action === "Shares and Payments" ? paymentOption : selection.action;
+  const isSharePurchase = currentAction === "Share purchase";
+  const isLoanPayment = currentAction === "Pay Loan";
+  const isPenalty = currentAction === "Pay Penalty" || currentAction === "Penalty";
   const [notice, setNotice] = useState("");
 
   function updateShareCount(value: string) {
@@ -55,8 +63,8 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const value = selection.action === "Shares" ? Number(sharesAmount) : Number(amount);
-    setNotice(`${selection.action} preview: ${pesos(value)} for ${selection.member.name || "unnamed member"}. No transaction has been saved.`);
+    const value = isSharePurchase ? Number(sharesAmount) : isPenalty ? Number(penaltyAmount) : Number(amount);
+    setNotice(`${currentAction} preview: ${pesos(value)} for ${selection.member.name || "unnamed member"}. No transaction has been saved.`);
   }
 
   return (
@@ -66,9 +74,17 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         <button className="cycle-close" type="button" aria-label="Close member action" onClick={onClose}>×</button>
       </div>
       <div className="business-selected-member"><span className="eyebrow">MEMBER</span><h3 id="business-member-name">{selection.member.name || "Unnamed member"}</h3></div>
-      <p id="business-action-description">Preview only. {(selection.action === "Loan Payments" || selection.action === "Disburse Loans") && "Loan amounts below are sample data. "}Submissions are not saved.</p>
+      <p id="business-action-description">Preview only. {(isLoanPayment || selection.action === "Disburse Loans") && "Loan amounts below are sample data. "}Submissions are not saved.</p>
       <form className="cycle-draft-form" onSubmit={handleSubmit}>
-        {selection.action === "Shares" ? (
+        {selection.action === "Shares and Payments" && (
+          <div className="business-payment-options" role="group" aria-label="Purchase or payment type">
+            {paymentOptions.map((option) => (
+              <button key={option} type="button" aria-pressed={paymentOption === option} aria-controls="business-payment-fields" onClick={() => { setPaymentOption(option); setNotice(""); }}>{option}</button>
+            ))}
+          </div>
+        )}
+        <div id="business-payment-fields" role="group" aria-label={currentAction}>
+        {isSharePurchase ? (
           <>
             <div className="field">
               <label htmlFor="business-share-count">No. of Shares</label>
@@ -81,27 +97,28 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
               <p id="business-shares-hint" className="cycle-field-hint">Edit either field to update the other. Enter multiples of {pesos(pricePerShare)} for whole shares.</p>
             </div>
           </>
-        ) : selection.action === "Penalty" ? (
+        ) : isPenalty ? (
           <div className="field">
             <label htmlFor="business-penalty">Penalty (₱)</label>
-            <input ref={firstInput} id="business-penalty" name="penalty" type="number" min="0" step="0.01" required value={amount} onChange={(event) => { setAmount(event.target.value); setNotice(""); }} aria-describedby="business-penalty-hint" />
+            <input ref={firstInput} id="business-penalty" name="penalty" type="number" min="0" step="0.01" required value={penaltyAmount} onChange={(event) => { setPenaltyAmount(event.target.value); setNotice(""); }} aria-describedby="business-penalty-hint" />
             <p id="business-penalty-hint" className="cycle-field-hint">Defaults to the active cycle’s absence penalty.</p>
           </div>
         ) : (
           <>
             <dl className="business-loan-summary">
-              <dt>{selection.action === "Loan Payments" ? "Remaining balance" : "Applied loan"} <span className="cycle-optional">(sample)</span></dt>
-              <dd>{pesos(selection.action === "Loan Payments" ? previewRemainingBalance : previewAppliedLoan)}</dd>
+              <dt>{isLoanPayment ? "Remaining balance" : "Applied loan"} <span className="cycle-optional">(sample)</span></dt>
+              <dd>{pesos(isLoanPayment ? previewRemainingBalance : previewAppliedLoan)}</dd>
             </dl>
             <div className="field">
-              <label htmlFor="business-loan-amount">{selection.action === "Loan Payments" ? "Payment amount (₱)" : "Loan to Disburse (₱)"}</label>
-              <input ref={firstInput} id="business-loan-amount" name="amount" type="number" min="0.01" max={selection.action === "Loan Payments" ? previewRemainingBalance : previewAppliedLoan} step="0.01" placeholder="0.00" required value={amount} onChange={(event) => { setAmount(event.target.value); setNotice(""); }} />
+              <label htmlFor="business-loan-amount">{isLoanPayment ? "Payment amount (₱)" : "Loan to Disburse (₱)"}</label>
+              <input ref={firstInput} id="business-loan-amount" name="amount" type="number" min="0.01" max={isLoanPayment ? previewRemainingBalance : previewAppliedLoan} step="0.01" placeholder="0.00" required value={amount} onChange={(event) => { setAmount(event.target.value); setNotice(""); }} />
             </div>
           </>
         )}
+        </div>
         <div className="cycle-drawer-footer">
           <button type="button" className="cycle-cancel" onClick={onClose}>Cancel</button>
-          <button type="submit" className="submit-button">{selection.action === "Loan Payments" ? "Pay" : "Submit"}</button>
+          <button type="submit" className="submit-button">{isLoanPayment ? "Pay" : "Submit"}</button>
         </div>
         <p className="business-submit-notice" role="status" aria-live="polite">{notice}</p>
       </form>
