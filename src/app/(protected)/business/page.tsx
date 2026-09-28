@@ -5,13 +5,15 @@ import { useCycles } from "@/components/cycle-provider";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { useMembers } from "@/components/members-provider";
+import { SharePurchaseAccounts } from "@/components/share-purchase-accounts";
+import { fetchCycleAccounts, type LedgerAccount } from "@/lib/accounts";
 import { canViewBusiness } from "@/lib/auth";
 import { getActiveCycleMembers, type Member } from "@/lib/members";
 
 const actions = ["Shares and Payments", "Disburse Loans", "Penalty"] as const;
 const paymentOptions = ["Share purchase", "Pay Loan", "Pay Penalty"] as const;
 type PaymentOption = typeof paymentOptions[number];
-type CheckoutItem = { id: number; type: PaymentOption; amountCents: number; shares?: number };
+type CheckoutItem = { id: number; type: PaymentOption; amountCents: number; shares?: number; debitAccount?: LedgerAccount; creditAccount?: LedgerAccount };
 type BusinessAction = typeof actions[number];
 type Selection = { action: BusinessAction; member: Member; trigger: HTMLButtonElement };
 const pricePerShare = 100;
@@ -22,6 +24,13 @@ const pesos = (amount: number) => new Intl.NumberFormat("en-PH", { style: "curre
 
 function ActionPanel({ selection, onClose }: { selection: Selection; onClose: () => void }) {
   const { activeCycle } = useCycles();
+  const { session } = useAuth();
+  const { subdomain } = useCommunity();
+  const [accounts, setAccounts] = useState<LedgerAccount[] | null>(null);
+  const [accountsError, setAccountsError] = useState("");
+  const [accountsAttempt, setAccountsAttempt] = useState(0);
+  const [fundsAccountId, setFundsAccountId] = useState("");
+  const [capitalAccountId, setCapitalAccountId] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
   const firstInput = useRef<HTMLInputElement>(null);
   const [shareCount, setShareCount] = useState("1");
@@ -40,6 +49,22 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const totalCents = items.reduce((total, item) => total + item.amountCents, 0);
   const queuedLoanCents = items.reduce((total, item) => total + (item.type === "Pay Loan" ? item.amountCents : 0), 0);
   const remainingLoanAmount = (previewRemainingBalance * 100 - queuedLoanCents) / 100;
+
+  const debitAccount = accounts?.find((account) => String(account.id) === fundsAccountId && account.type === "ASSET");
+  const creditAccount = accounts?.find((account) => String(account.id) === capitalAccountId && account.type === "EQUITY");
+  const accessToken = session?.access_token;
+  const cycleId = activeCycle?.id;
+
+  useEffect(() => {
+    if (!isCheckout || !accessToken || !subdomain || cycleId === undefined) return;
+    const controller = new AbortController();
+    fetchCycleAccounts(accessToken, subdomain, cycleId, controller.signal).then((accounts) => {
+      if (!controller.signal.aborted) setAccounts(accounts);
+    }).catch((cause: unknown) => {
+      if (!controller.signal.aborted) setAccountsError(cause instanceof Error ? cause.message : "Unable to load cycle accounts.");
+    });
+    return () => controller.abort();
+  }, [isCheckout, accessToken, subdomain, cycleId, accountsAttempt]);
 
   function updateShareCount(value: string) {
     setShareCount(value);
@@ -81,7 +106,11 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         setNotice("Loan payments cannot exceed the remaining balance.");
         return;
       }
-      const item: CheckoutItem = { id: nextItemId.current++, type: paymentOption, amountCents, ...(isSharePurchase ? { shares: Number(shareCount) } : {}) };
+      if (isSharePurchase && (!debitAccount || !creditAccount || accountsError)) {
+        setNotice("Select an asset account and an equity account before adding a share purchase.");
+        return;
+      }
+      const item: CheckoutItem = { id: nextItemId.current++, type: paymentOption, amountCents, ...(isSharePurchase ? { shares: Number(shareCount), debitAccount, creditAccount } : {}) };
       setItems((current) => [...current, item]);
       setNotice(`${paymentOption} added to checkout.`);
       return;
@@ -118,6 +147,13 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
               <input id="business-shares" name="shares" type="number" min={pricePerShare} max={Math.floor(Number.MAX_SAFE_INTEGER / 10000) * pricePerShare} step={pricePerShare} required value={sharesAmount} onChange={(event) => updateSharesAmount(event.target.value)} aria-describedby="business-shares-hint" />
               <p id="business-shares-hint" className="cycle-field-hint">Edit either field to update the other. Enter multiples of {pesos(pricePerShare)} for whole shares.</p>
             </div>
+            {accountsError ? (
+              <div><p role="alert">{accountsError}</p><button type="button" className="text-button" onClick={() => { setAccountsError(""); setAccounts(null); setAccountsAttempt((value) => value + 1); }}>Try again</button></div>
+            ) : accounts === null ? <p role="status">Loading cycle accounts…</p> : (
+              <SharePurchaseAccounts accounts={accounts} fundsAccountId={fundsAccountId} capitalAccountId={capitalAccountId}
+                onFundsAccountChange={(id) => { setFundsAccountId(id); setNotice(""); }}
+                onCapitalAccountChange={(id) => { setCapitalAccountId(id); setNotice(""); }} />
+            )}
           </>
         ) : isPenalty ? (
           <div className="field">
@@ -140,7 +176,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         </div>
         <div className="cycle-drawer-footer">
           {!isCheckout && <button type="button" className="cycle-cancel" onClick={onClose}>Cancel</button>}
-          <button type="submit" className="submit-button" disabled={isCheckout && isLoanPayment && remainingLoanAmount <= 0}>{isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : "Submit"}</button>
+          <button type="submit" className="submit-button" disabled={(isCheckout && isLoanPayment && remainingLoanAmount <= 0) || (isSharePurchase && (!debitAccount || !creditAccount || !!accountsError))}>{isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : "Submit"}</button>
         </div>
       </form>
       {isCheckout && (
@@ -154,7 +190,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
                 {items.length === 0 && <tr><td colSpan={3}>Add a share purchase, loan payment, or penalty payment above.</td></tr>}
                 {items.map((item) => (
                   <tr key={item.id}>
-                    <th scope="row">{item.type}{item.shares !== undefined && <span className="business-checkout-detail">{item.shares} {item.shares === 1 ? "share" : "shares"}</span>}</th>
+                    <th scope="row">{item.type}{item.shares !== undefined && <span className="business-checkout-detail">{item.shares} {item.shares === 1 ? "share" : "shares"}</span>}{item.debitAccount && <span className="business-checkout-detail">Debit: {item.debitAccount.name}</span>}{item.creditAccount && <span className="business-checkout-detail">Credit: {item.creditAccount.name}</span>}</th>
                     <td>{pesos(item.amountCents / 100)}</td>
                     <td><button type="button" className="text-button" aria-label={`Remove ${item.type} of ${pesos(item.amountCents / 100)}`} onClick={() => { setItems((current) => current.filter((entry) => entry.id !== item.id)); setNotice("Item removed from checkout."); }}>Remove</button></td>
                   </tr>
