@@ -604,6 +604,8 @@ h1 > span {
 .cycle-draft-form textarea { resize: vertical; min-height: 96px; }
 .cycle-draft-form label { line-height: 1.5; }
 .cycle-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.share-purchase-accounts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+.share-purchase-accounts .field { display: grid; grid-template-rows: subgrid; grid-row: span 3; }
 .cycle-field-hint { margin: 6px 0 0; }
 .cycle-interest-description { margin: -10px 0 22px; }
 .cycle-drawer-footer { display: flex; align-items: center; gap: 16px; padding-top: 20px; border-top: 1px solid var(--line); }
