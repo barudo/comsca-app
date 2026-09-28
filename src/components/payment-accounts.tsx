@@ -4,7 +4,7 @@ import type { LedgerAccount } from "@/lib/accounts";
 
 type Props = {
   accounts: LedgerAccount[];
-  creditType: "ASSET" | "EQUITY";
+  creditType: "ASSET" | "EQUITY" | "INCOME";
   creditLabel: string;
   debitLabel?: string;
   fundsAccountId: string;
@@ -16,7 +16,7 @@ type Props = {
 export function PaymentAccounts({ accounts, creditType, creditLabel, debitLabel = "Funds Received Into", fundsAccountId, creditAccountId, onFundsAccountChange, onCreditAccountChange }: Props) {
   const assetAccounts = accounts.filter((account) => account.type.trim().toUpperCase() === "ASSET");
   const creditAccounts = accounts.filter((account) => account.type.trim().toUpperCase() === creditType);
-  const creditKind = creditType === "ASSET" ? "asset" : "equity";
+  const creditKind = creditType.toLowerCase();
 
   return (
     <div className="share-purchase-accounts">

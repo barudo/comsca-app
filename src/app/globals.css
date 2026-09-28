@@ -735,6 +735,8 @@ h1 > span {
 .business-member-actions button:hover { background: var(--pale); border-color: var(--blue); }
 .business-payment-options { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
 .business-payment-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.business-heading { flex-wrap: wrap; }
+.business-heading-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin-left: auto; }
 .business-payment-options button { flex: 1 1 120px; min-height: 44px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--blue); font-weight: 600; }
 .business-payment-options button:hover { border-color: var(--blue); background: var(--pale); }
 .business-payment-options button[aria-pressed="true"] { border-color: var(--blue); background: var(--blue); color: #fff; }
