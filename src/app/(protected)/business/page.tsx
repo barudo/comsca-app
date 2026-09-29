@@ -10,6 +10,7 @@ import { PaymentAccounts } from "@/components/payment-accounts";
 import { fetchCycleAccounts, type LedgerAccount } from "@/lib/accounts";
 import { disburseLoan } from "@/lib/disbursements";
 import { postPayments, type PaymentEntry } from "@/lib/payments";
+import { chargePenalty } from "@/lib/penalties";
 import { canViewBusiness } from "@/lib/auth";
 import { fetchCycleMembers, type CycleMember } from "@/lib/members";
 
@@ -188,6 +189,33 @@ function ActionPanel({ selection, onClose, onPaymentsSaved }: { selection: Selec
       const item: CheckoutItem = { id: nextItemId.current++, type: paymentOption, amountCents, ...(isSharePurchase ? { shares: Number(shareCount) } : {}), debitAccount, creditAccount };
       setItems((current) => [...current, item]);
       setNotice(`${paymentOption} added to checkout.`);
+      return;
+    }
+    if (isPenalty) {
+      if (!accessToken || !subdomain || !debitAccount || !creditAccount || accountsError) {
+        setCheckoutError("Select a receivable account and an income account before charging the penalty.");
+        return;
+      }
+      if (!/^\d+(\.\d{1,2})?$/.test(penaltyAmount) || Number(penaltyAmount) <= 0 || !Number.isSafeInteger(Math.round(Number(penaltyAmount) * 100))) {
+        setCheckoutError("Enter a valid positive penalty amount with up to two decimal places.");
+        return;
+      }
+      checkoutInFlight.current = true;
+      setCheckingOut(true);
+      setNotice("");
+      try {
+        await chargePenalty(accessToken, subdomain, {
+          amount: Number(penaltyAmount).toFixed(2),
+          debit: String(debitAccount.id),
+          credit: String(creditAccount.id),
+        });
+        setNotice(`Penalty charged: ${pesos(Number(penaltyAmount))} for ${selection.member.name || "unnamed member"}.`);
+      } catch (cause) {
+        setCheckoutError(cause instanceof Error ? cause.message : "Unable to charge the penalty.");
+      } finally {
+        checkoutInFlight.current = false;
+        setCheckingOut(false);
+      }
       return;
     }
     setNotice(`${currentAction} preview: ${pesos(value)} for ${selection.member.name || "unnamed member"}. No transaction has been saved.`);
