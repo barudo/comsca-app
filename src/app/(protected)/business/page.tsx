@@ -23,7 +23,7 @@ const pricePerShare = 100;
 const previewAppliedLoan = 10000;
 const pesos = (amount: number) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(amount);
 
-function ActionPanel({ selection, onClose }: { selection: Selection; onClose: () => void }) {
+function ActionPanel({ selection, onClose, onPaymentsSaved }: { selection: Selection; onClose: () => void; onPaymentsSaved: (memberId: string | number) => Promise<CycleMember> }) {
   const { activeCycle } = useCycles();
   const { session } = useAuth();
   const { subdomain } = useCommunity();
@@ -45,6 +45,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const firstInput = useRef<HTMLInputElement>(null);
   const [shareCount, setShareCount] = useState("1");
   const [sharesAmount, setSharesAmount] = useState("100.00");
+  const [memberBalances, setMemberBalances] = useState(selection.member);
   const [paymentOption, setPaymentOption] = useState<PaymentOption>("Share purchase");
   const [amount, setAmount] = useState("");
   const [penaltyAmount, setPenaltyAmount] = useState(activeCycle?.details?.absencePenalty ?? "");
@@ -65,8 +66,8 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const totalCents = items.reduce((total, item) => total + item.amountCents, 0);
   const queuedLoanCents = items.reduce((total, item) => total + (item.type === "Pay Loan" ? item.amountCents : 0), 0);
   const queuedPenaltyCents = items.reduce((total, item) => total + (item.type === "Pay Penalty" ? item.amountCents : 0), 0);
-  const remainingLoanAmount = Math.max(0, (Number(selection.member.remainingLoan) * 100 - queuedLoanCents) / 100);
-  const remainingPenaltyAmount = Math.max(0, (Number(selection.member.unpaidPenalties) * 100 - queuedPenaltyCents) / 100);
+  const remainingLoanAmount = Math.max(0, (Number(memberBalances.remainingLoan) * 100 - queuedLoanCents) / 100);
+  const remainingPenaltyAmount = Math.max(0, (Number(memberBalances.unpaidPenalties) * 100 - queuedPenaltyCents) / 100);
 
   const debitAccount = accounts?.find((account) => String(account.id) === (isContribution ? contributionFundsAccountId : isDisbursement ? disbursementLoanAccountId : isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId) && account.type === "ASSET");
   const creditAccount = accounts?.find((account) => String(account.id) === (isContribution ? contributionAccountId : isDisbursement ? disbursementFundsAccountId : isPenaltyPayment ? penaltyIncomeAccountId : isLoanPayment ? loanAccountId : capitalAccountId) && account.type === (isSharePurchase ? "EQUITY" : "ASSET"));
@@ -162,11 +163,11 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         setNotice("Enter a valid amount within the supported range.");
         return;
       }
-      if (isLoanPayment && amountCents + queuedLoanCents > Number(selection.member.remainingLoan) * 100) {
+      if (isLoanPayment && amountCents + queuedLoanCents > Number(memberBalances.remainingLoan) * 100) {
         setNotice("Loan payments cannot exceed the remaining balance.");
         return;
       }
-      if (isPenaltyPayment && amountCents + queuedPenaltyCents > Number(selection.member.unpaidPenalties) * 100) {
+      if (isPenaltyPayment && amountCents + queuedPenaltyCents > Number(memberBalances.unpaidPenalties) * 100) {
         setNotice("Penalty payments cannot exceed the unpaid penalties.");
         return;
       }
@@ -205,6 +206,13 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
       await postPayments(accessToken, subdomain, selection.member.id, cycleId, entries);
       setItems([]);
       setNotice(`Payments saved: ${pesos(totalCents / 100)} for ${selection.member.name || "unnamed member"}.`);
+      try {
+        setMemberBalances(await onPaymentsSaved(selection.member.id));
+      } catch (cause) {
+        setCheckoutError(cause instanceof Error
+          ? `Payments were saved, but member balances could not be refreshed: ${cause.message}`
+          : "Payments were saved, but member balances could not be refreshed.");
+      }
     } catch (cause) {
       setCheckoutError(cause instanceof Error ? cause.message : "Unable to complete checkout.");
     } finally {
@@ -233,7 +241,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         <div id="business-payment-fields" role="group" aria-label={currentAction}>
         {isSharePurchase ? (
           <>
-            <dl className="business-loan-summary"><dt>Total shares</dt><dd>{pesos(Number(selection.member.totalShares))}</dd></dl>
+            <dl className="business-loan-summary"><dt>Total shares</dt><dd>{pesos(Number(memberBalances.totalShares))}</dd></dl>
             <div className="field">
               <label htmlFor="business-share-count">No. of Shares</label>
               <input ref={firstInput} id="business-share-count" name="share_count" type="number" min="1" max={Math.floor(Number.MAX_SAFE_INTEGER / 10000)} step="1" required value={shareCount} onChange={(event) => updateShareCount(event.target.value)} aria-describedby="business-share-price" />
@@ -248,7 +256,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
           </>
         ) : isContribution ? (
           <>
-            <dl className="business-loan-summary"><dt>Unpaid contributions</dt><dd>{pesos(Number(selection.member.unpaidContributions))}</dd></dl>
+            <dl className="business-loan-summary"><dt>Unpaid contributions</dt><dd>{pesos(Number(memberBalances.unpaidContributions))}</dd></dl>
             <div className="field">
               <label htmlFor="business-contribution-amount">Contribution (₱)</label>
               <input ref={firstInput} id="business-contribution-amount" name="contribution_amount" type="number" min="0.01" step="0.01" placeholder="0.00" required value={contributionAmount} onChange={(event) => { setContributionAmount(event.target.value); setNotice(""); }} />
@@ -333,6 +341,14 @@ function BusinessMembers({ cycleId, accessToken, groupSlug }: { cycleId: string 
   const [attempt, setAttempt] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null);
 
+  async function refreshMemberBalances(memberId: string | number) {
+    const cycleMembers = await fetchCycleMembers(accessToken, groupSlug, cycleId);
+    setMembers(cycleMembers);
+    const refreshedMember = cycleMembers.find((member) => String(member.id) === String(memberId));
+    if (!refreshedMember) throw new Error("The member was not found in the refreshed cycle.");
+    return refreshedMember;
+  }
+
   useEffect(() => {
     const controller = new AbortController();
     fetchCycleMembers(accessToken, groupSlug, cycleId, controller.signal).then((cycleMembers) => {
@@ -378,7 +394,7 @@ function BusinessMembers({ cycleId, accessToken, groupSlug }: { cycleId: string 
           </table>
         </div>
       )}
-      {selection && <ActionPanel selection={selection} onClose={() => setSelection(null)} />}
+      {selection && <ActionPanel key={`${selection.action}:${selection.member.id}`} selection={selection} onClose={() => setSelection(null)} onPaymentsSaved={refreshMemberBalances} />}
     </>
   );
 }
