@@ -14,9 +14,9 @@ import { canViewBusiness } from "@/lib/auth";
 import { getActiveCycleMembers, type Member } from "@/lib/members";
 
 const actions = ["Shares and Payments", "Disburse Loans", "Penalty"] as const;
-const paymentOptions = ["Share purchase", "Pay Loan", "Pay Penalty", "Monthly Contribution"] as const;
+const paymentOptions = ["Share purchase", "Pay Loan", "Pay Penalty", "Contribution"] as const;
 type PaymentOption = typeof paymentOptions[number];
-type CheckoutItem = { id: number; type: Exclude<PaymentOption, "Monthly Contribution">; amountCents: number; shares?: number; debitAccount?: LedgerAccount; creditAccount?: LedgerAccount };
+type CheckoutItem = { id: number; type: Exclude<PaymentOption, "Contribution">; amountCents: number; shares?: number; debitAccount?: LedgerAccount; creditAccount?: LedgerAccount };
 type BusinessAction = typeof actions[number];
 type Selection = { action: BusinessAction; member: Member; trigger: HTMLButtonElement };
 const pricePerShare = 100;
@@ -53,7 +53,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const currentAction = selection.action === "Shares and Payments" ? paymentOption : selection.action;
   const isDisbursement = currentAction === "Disburse Loans";
   const isSharePurchase = currentAction === "Share purchase";
-  const isMonthlyContribution = currentAction === "Monthly Contribution";
+  const isContribution = currentAction === "Contribution";
   const isLoanPayment = currentAction === "Pay Loan";
   const isPenaltyPayment = currentAction === "Pay Penalty";
   const isPenalty = currentAction === "Pay Penalty" || currentAction === "Penalty";
@@ -68,8 +68,8 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const queuedLoanCents = items.reduce((total, item) => total + (item.type === "Pay Loan" ? item.amountCents : 0), 0);
   const remainingLoanAmount = (previewRemainingBalance * 100 - queuedLoanCents) / 100;
 
-  const debitAccount = accounts?.find((account) => String(account.id) === (isMonthlyContribution ? contributionFundsAccountId : isDisbursement ? disbursementLoanAccountId : isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId) && account.type === "ASSET");
-  const creditAccount = accounts?.find((account) => String(account.id) === (isMonthlyContribution ? contributionAccountId : isDisbursement ? disbursementFundsAccountId : isPenaltyPayment ? penaltyIncomeAccountId : isLoanPayment ? loanAccountId : capitalAccountId) && account.type === (isSharePurchase ? "EQUITY" : "ASSET"));
+  const debitAccount = accounts?.find((account) => String(account.id) === (isContribution ? contributionFundsAccountId : isDisbursement ? disbursementLoanAccountId : isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId) && account.type === "ASSET");
+  const creditAccount = accounts?.find((account) => String(account.id) === (isContribution ? contributionAccountId : isDisbursement ? disbursementFundsAccountId : isPenaltyPayment ? penaltyIncomeAccountId : isLoanPayment ? loanAccountId : capitalAccountId) && account.type === (isSharePurchase ? "EQUITY" : "ASSET"));
   const accessToken = session?.access_token;
   const cycleId = activeCycle?.id;
 
@@ -113,7 +113,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (checkoutInFlight.current || paymentOption === "Monthly Contribution" && isCheckout) return;
+    if (checkoutInFlight.current || paymentOption === "Contribution" && isCheckout) return;
     setCheckoutError("");
     const value = isSharePurchase ? Number(sharesAmount) : isPenalty ? Number(penaltyAmount) : Number(amount);
     if (isDisbursement) {
@@ -144,7 +144,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
       return;
     }
     if (isCheckout) {
-      if (paymentOption === "Monthly Contribution") return;
+      if (paymentOption === "Contribution") return;
       const amountCents = Math.round(value * 100);
       if (!Number.isSafeInteger(amountCents) || amountCents < 0 || !Number.isSafeInteger(totalCents + amountCents)) {
         setNotice("Enter a valid amount within the supported range.");
@@ -204,7 +204,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         <button className="cycle-close" type="button" aria-label="Close member action" disabled={checkingOut} onClick={onClose}>×</button>
       </div>
       <div className="business-selected-member"><span className="eyebrow">MEMBER</span><h3 id="business-member-name">{selection.member.name || "Unnamed member"}</h3></div>
-      <p id="business-action-description">{isMonthlyContribution ? "Monthly Contribution is a placeholder. Contributions cannot be added or submitted yet." : isCheckout ? "Add items below, then checkout to save payments." : isDisbursement ? "Submit to record the loan disbursement." : "Preview only. Submissions are not saved."} {(isLoanPayment || selection.action === "Disburse Loans") && "Loan amounts below are sample data. "}</p>
+      <p id="business-action-description">{isContribution ? "Contribution is a placeholder. Contributions cannot be added or submitted yet." : isCheckout ? "Add items below, then checkout to save payments." : isDisbursement ? "Submit to record the loan disbursement." : "Preview only. Submissions are not saved."} {(isLoanPayment || selection.action === "Disburse Loans") && "Loan amounts below are sample data. "}</p>
       <form className="cycle-draft-form" onSubmit={handleSubmit}>
         <fieldset className="business-payment-fields" disabled={checkingOut}>
         {selection.action === "Shares and Payments" && (
@@ -229,9 +229,9 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
             </div>
 
           </>
-        ) : isMonthlyContribution ? (
+        ) : isContribution ? (
           <div className="field">
-            <label htmlFor="business-contribution-amount">Monthly Contribution (₱)</label>
+            <label htmlFor="business-contribution-amount">Contribution (₱)</label>
             <input ref={firstInput} id="business-contribution-amount" name="contribution_amount" type="number" min="0.01" step="0.01" placeholder="0.00" value={contributionAmount} onChange={(event) => setContributionAmount(event.target.value)} />
           </div>
         ) : isPenalty ? (
@@ -252,18 +252,18 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
             </div>
           </>
         )}
-        {(isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement || isMonthlyContribution) && (accountsError ? (
+        {(isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement || isContribution) && (accountsError ? (
           <div><p role="alert">{accountsError}</p><button type="button" className="text-button" onClick={() => { setAccountsError(""); setAccounts(null); setAccountsAttempt((value) => value + 1); }}>Try again</button></div>
         ) : accounts === null ? <p role="status">Loading cycle accounts…</p> : (
-          <PaymentAccounts accounts={accounts} debitLabel={isDisbursement ? "Loan Account" : "Funds Received Into"} creditType={isSharePurchase ? "EQUITY" : "ASSET"} creditLabel={isMonthlyContribution ? "Monthly Contribution Account" : isDisbursement ? "Funds Disbursed From" : isPenaltyPayment ? "Penalty Income Account" : isLoanPayment ? "Loan Account" : "Share Capital Account"}
-            fundsAccountId={isMonthlyContribution ? contributionFundsAccountId : isDisbursement ? disbursementLoanAccountId : isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId} creditAccountId={isMonthlyContribution ? contributionAccountId : isDisbursement ? disbursementFundsAccountId : isPenaltyPayment ? penaltyIncomeAccountId : isLoanPayment ? loanAccountId : capitalAccountId}
-            onFundsAccountChange={(id) => { (isMonthlyContribution ? setContributionFundsAccountId : isDisbursement ? setDisbursementLoanAccountId : isPenaltyPayment ? setPenaltyFundsAccountId : isLoanPayment ? setLoanFundsAccountId : setFundsAccountId)(id); setNotice(""); }}
-            onCreditAccountChange={(id) => { (isMonthlyContribution ? setContributionAccountId : isDisbursement ? setDisbursementFundsAccountId : isPenaltyPayment ? setPenaltyIncomeAccountId : isLoanPayment ? setLoanAccountId : setCapitalAccountId)(id); setNotice(""); }} />
+          <PaymentAccounts accounts={accounts} debitLabel={isDisbursement ? "Loan Account" : "Funds Received Into"} creditType={isSharePurchase ? "EQUITY" : "ASSET"} creditLabel={isContribution ? "Contribution Account" : isDisbursement ? "Funds Disbursed From" : isPenaltyPayment ? "Penalty Income Account" : isLoanPayment ? "Loan Account" : "Share Capital Account"}
+            fundsAccountId={isContribution ? contributionFundsAccountId : isDisbursement ? disbursementLoanAccountId : isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId} creditAccountId={isContribution ? contributionAccountId : isDisbursement ? disbursementFundsAccountId : isPenaltyPayment ? penaltyIncomeAccountId : isLoanPayment ? loanAccountId : capitalAccountId}
+            onFundsAccountChange={(id) => { (isContribution ? setContributionFundsAccountId : isDisbursement ? setDisbursementLoanAccountId : isPenaltyPayment ? setPenaltyFundsAccountId : isLoanPayment ? setLoanFundsAccountId : setFundsAccountId)(id); setNotice(""); }}
+            onCreditAccountChange={(id) => { (isContribution ? setContributionAccountId : isDisbursement ? setDisbursementFundsAccountId : isPenaltyPayment ? setPenaltyIncomeAccountId : isLoanPayment ? setLoanAccountId : setCapitalAccountId)(id); setNotice(""); }} />
         ))}
         </div>
         <div className="cycle-drawer-footer">
           {!isCheckout && <button type="button" className="cycle-cancel" disabled={checkingOut} onClick={onClose}>Cancel</button>}
-          <button type="submit" className="submit-button" disabled={isMonthlyContribution || (isDisbursement && selection.member.id === undefined) || (isCheckout && isLoanPayment && remainingLoanAmount <= 0) || ((isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement || isMonthlyContribution) && (!debitAccount || !creditAccount || !!accountsError))}>{isMonthlyContribution ? "Add Monthly Contribution (coming soon)" : isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : checkingOut ? "Submitting…" : "Submit"}</button>
+          <button type="submit" className="submit-button" disabled={isContribution || (isDisbursement && selection.member.id === undefined) || (isCheckout && isLoanPayment && remainingLoanAmount <= 0) || ((isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement || isContribution) && (!debitAccount || !creditAccount || !!accountsError))}>{isContribution ? "Add Contribution (coming soon)" : isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : checkingOut ? "Submitting…" : "Submit"}</button>
         </div>
         </fieldset>
       </form>
