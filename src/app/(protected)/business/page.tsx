@@ -361,12 +361,15 @@ function BusinessMembers({ cycleId, accessToken, groupSlug }: { cycleId: string 
         <div className="members-table-wrapper" role="region" aria-label="Current cycle members" tabIndex={0}>
           <table className="members-table business-table">
             <caption>Current cycle members</caption>
-            <thead><tr><th scope="col">#</th><th scope="col">Member</th><th scope="col">Phone</th><th scope="col">Actions</th></tr></thead>
+            <thead><tr><th scope="col">#</th><th scope="col">Member</th><th scope="col">Total Shares</th><th scope="col">Remaining Loan</th><th scope="col">Unpaid Penalties</th><th scope="col">Unpaid Contributions</th><th scope="col">Actions</th></tr></thead>
             <tbody>{members.map((member, index) => (
               <tr key={member.id ?? index}>
                 <td>{index + 1}</td>
                 <th scope="row">{member.name || "Unnamed member"}{member.email && <span className="business-member-email">{member.email}</span>}</th>
-                <td>{member.phone || "—"}</td>
+                <td>{pesos(Number(member.totalShares))}</td>
+                <td>{pesos(Number(member.remainingLoan))}</td>
+                <td>{pesos(Number(member.unpaidPenalties))}</td>
+                <td>{pesos(Number(member.unpaidContributions))}</td>
                 <td><div className="business-member-actions">{actions.map((action) => (
                   <button key={action} type="button" aria-label={`${action} for ${member.name || "unnamed member"}`} onClick={(event) => setSelection({ action, member, trigger: event.currentTarget })}>{action}</button>
                 ))}</div></td>
