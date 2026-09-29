@@ -11,17 +11,15 @@ import { fetchCycleAccounts, type LedgerAccount } from "@/lib/accounts";
 import { disburseLoan } from "@/lib/disbursements";
 import { postPayments, type PaymentEntry } from "@/lib/payments";
 import { canViewBusiness } from "@/lib/auth";
-import { getActiveCycleMembers, type Member } from "@/lib/members";
+import { fetchCycleMembers, type CycleMember } from "@/lib/members";
 
 const actions = ["Shares and Payments", "Disburse Loans", "Penalty"] as const;
 const paymentOptions = ["Share purchase", "Pay Loan", "Pay Penalty", "Contribution"] as const;
 type PaymentOption = typeof paymentOptions[number];
 type CheckoutItem = { id: number; type: PaymentOption; amountCents: number; shares?: number; debitAccount?: LedgerAccount; creditAccount?: LedgerAccount };
 type BusinessAction = typeof actions[number];
-type Selection = { action: BusinessAction; member: Member; trigger: HTMLButtonElement };
+type Selection = { action: BusinessAction; member: CycleMember; trigger: HTMLButtonElement };
 const pricePerShare = 100;
-// Sample amounts until member loan data is available from the backend.
-const previewRemainingBalance = 5000;
 const previewAppliedLoan = 10000;
 const pesos = (amount: number) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(amount);
 
@@ -56,7 +54,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const isContribution = currentAction === "Contribution";
   const isLoanPayment = currentAction === "Pay Loan";
   const isPenaltyPayment = currentAction === "Pay Penalty";
-  const isPenalty = currentAction === "Pay Penalty" || currentAction === "Penalty";
+  const isPenalty = selection.action === "Penalty";
   const [notice, setNotice] = useState("");
   const [items, setItems] = useState<CheckoutItem[]>([]);
   const [checkingOut, setCheckingOut] = useState(false);
@@ -66,7 +64,9 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   const isCheckout = selection.action === "Shares and Payments";
   const totalCents = items.reduce((total, item) => total + item.amountCents, 0);
   const queuedLoanCents = items.reduce((total, item) => total + (item.type === "Pay Loan" ? item.amountCents : 0), 0);
-  const remainingLoanAmount = (previewRemainingBalance * 100 - queuedLoanCents) / 100;
+  const queuedPenaltyCents = items.reduce((total, item) => total + (item.type === "Pay Penalty" ? item.amountCents : 0), 0);
+  const remainingLoanAmount = Math.max(0, (Number(selection.member.remainingLoan) * 100 - queuedLoanCents) / 100);
+  const remainingPenaltyAmount = Math.max(0, (Number(selection.member.unpaidPenalties) * 100 - queuedPenaltyCents) / 100);
 
   const debitAccount = accounts?.find((account) => String(account.id) === (isContribution ? contributionFundsAccountId : isDisbursement ? disbursementLoanAccountId : isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId) && account.type === "ASSET");
   const creditAccount = accounts?.find((account) => String(account.id) === (isContribution ? contributionAccountId : isDisbursement ? disbursementFundsAccountId : isPenaltyPayment ? penaltyIncomeAccountId : isLoanPayment ? loanAccountId : capitalAccountId) && account.type === (isSharePurchase ? "EQUITY" : "ASSET"));
@@ -162,8 +162,12 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         setNotice("Enter a valid amount within the supported range.");
         return;
       }
-      if (isLoanPayment && amountCents + queuedLoanCents > previewRemainingBalance * 100) {
+      if (isLoanPayment && amountCents + queuedLoanCents > Number(selection.member.remainingLoan) * 100) {
         setNotice("Loan payments cannot exceed the remaining balance.");
+        return;
+      }
+      if (isPenaltyPayment && amountCents + queuedPenaltyCents > Number(selection.member.unpaidPenalties) * 100) {
+        setNotice("Penalty payments cannot exceed the unpaid penalties.");
         return;
       }
       if (!debitAccount || !creditAccount || accountsError) {
@@ -216,7 +220,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         <button className="cycle-close" type="button" aria-label="Close member action" disabled={checkingOut} onClick={onClose}>×</button>
       </div>
       <div className="business-selected-member"><span className="eyebrow">MEMBER</span><h3 id="business-member-name">{selection.member.name || "Unnamed member"}</h3></div>
-      <p id="business-action-description">{isCheckout ? "Add items below, then checkout to save payments." : isDisbursement ? "Submit to record the loan disbursement." : "Preview only. Submissions are not saved."} {(isLoanPayment || selection.action === "Disburse Loans") && "Loan amounts below are sample data. "}</p>
+      <p id="business-action-description">{isCheckout ? "Add items below, then checkout to save payments." : isDisbursement ? "Submit to record the loan disbursement." : "Preview only. Submissions are not saved."} {selection.action === "Disburse Loans" && "Loan amounts below are sample data. "}</p>
       <form className="cycle-draft-form" onSubmit={handleSubmit}>
         <fieldset className="business-payment-fields" disabled={checkingOut}>
         {selection.action === "Shares and Payments" && (
@@ -229,6 +233,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         <div id="business-payment-fields" role="group" aria-label={currentAction}>
         {isSharePurchase ? (
           <>
+            <dl className="business-loan-summary"><dt>Total shares</dt><dd>{pesos(Number(selection.member.totalShares))}</dd></dl>
             <div className="field">
               <label htmlFor="business-share-count">No. of Shares</label>
               <input ref={firstInput} id="business-share-count" name="share_count" type="number" min="1" max={Math.floor(Number.MAX_SAFE_INTEGER / 10000)} step="1" required value={shareCount} onChange={(event) => updateShareCount(event.target.value)} aria-describedby="business-share-price" />
@@ -242,10 +247,21 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
 
           </>
         ) : isContribution ? (
-          <div className="field">
-            <label htmlFor="business-contribution-amount">Contribution (₱)</label>
-            <input ref={firstInput} id="business-contribution-amount" name="contribution_amount" type="number" min="0.01" step="0.01" placeholder="0.00" required value={contributionAmount} onChange={(event) => { setContributionAmount(event.target.value); setNotice(""); }} />
-          </div>
+          <>
+            <dl className="business-loan-summary"><dt>Unpaid contributions</dt><dd>{pesos(Number(selection.member.unpaidContributions))}</dd></dl>
+            <div className="field">
+              <label htmlFor="business-contribution-amount">Contribution (₱)</label>
+              <input ref={firstInput} id="business-contribution-amount" name="contribution_amount" type="number" min="0.01" step="0.01" placeholder="0.00" required value={contributionAmount} onChange={(event) => { setContributionAmount(event.target.value); setNotice(""); }} />
+            </div>
+          </>
+        ) : isPenaltyPayment ? (
+          <>
+            <dl className="business-loan-summary"><dt>Unpaid penalties</dt><dd>{pesos(remainingPenaltyAmount)}</dd></dl>
+            <div className="field">
+              <label htmlFor="business-penalty-payment-amount">Payment amount (₱)</label>
+              <input ref={firstInput} id="business-penalty-payment-amount" name="amount" type="number" min="0.01" max={remainingPenaltyAmount} step="0.01" placeholder="0.00" required value={amount} onChange={(event) => { setAmount(event.target.value); setNotice(""); }} />
+            </div>
+          </>
         ) : isPenalty ? (
           <div className="field">
             <label htmlFor="business-penalty">Penalty (₱)</label>
@@ -255,7 +271,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         ) : (
           <>
             <dl className="business-loan-summary">
-              <dt>{isLoanPayment ? "Remaining balance" : "Applied loan"} <span className="cycle-optional">(sample)</span></dt>
+              <dt>{isLoanPayment ? "Remaining balance" : "Applied loan"}{!isLoanPayment && <span className="cycle-optional">(sample)</span>}</dt>
               <dd>{pesos(isLoanPayment ? remainingLoanAmount : previewAppliedLoan)}</dd>
             </dl>
             <div className="field">
@@ -275,7 +291,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         </div>
         <div className="cycle-drawer-footer">
           {!isCheckout && <button type="button" className="cycle-cancel" disabled={checkingOut} onClick={onClose}>Cancel</button>}
-          <button type="submit" className="submit-button" disabled={(isDisbursement && selection.member.id === undefined) || (isCheckout && isLoanPayment && remainingLoanAmount <= 0) || ((isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement || isContribution) && (!debitAccount || !creditAccount || !!accountsError))}>{isContribution ? "Add Contribution" : isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : checkingOut ? "Submitting…" : "Submit"}</button>
+          <button type="submit" className="submit-button" disabled={(isDisbursement && selection.member.id === undefined) || (isCheckout && isLoanPayment && remainingLoanAmount <= 0) || (isCheckout && isPenaltyPayment && remainingPenaltyAmount <= 0) || ((isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement || isContribution) && (!debitAccount || !creditAccount || !!accountsError))}>{isContribution ? "Add Contribution" : isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : checkingOut ? "Submitting…" : "Submit"}</button>
         </div>
         </fieldset>
       </form>
@@ -311,23 +327,26 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
   );
 }
 
-function BusinessMembers({ cycleId }: { cycleId: string | number }) {
-  const { snapshot, error: loadError, refreshMembers } = useMembers();
+function BusinessMembers({ cycleId, accessToken, groupSlug }: { cycleId: string | number; accessToken: string; groupSlug: string }) {
+  const [members, setMembers] = useState<CycleMember[] | null>(null);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null);
-  let members: Member[] | null = null;
-  let error = loadError;
-  if (snapshot) {
-    try {
-      members = getActiveCycleMembers(snapshot, cycleId);
-    } catch (cause) {
-      error = cause instanceof Error ? cause.message : "Unable to verify current cycle members.";
-    }
-  }
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchCycleMembers(accessToken, groupSlug, cycleId, controller.signal).then((cycleMembers) => {
+      if (!controller.signal.aborted) setMembers(cycleMembers);
+    }).catch((cause: unknown) => {
+      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Unable to load current cycle members.");
+    });
+    return () => controller.abort();
+  }, [accessToken, groupSlug, cycleId, attempt]);
 
   if (error) return (
     <div className="members-feedback">
       <p role="alert">{error}</p>
-      <button type="button" className="text-button" onClick={() => { void refreshMembers(); }}>Try again</button>
+      <button type="button" className="text-button" onClick={() => { setMembers(null); setError(""); setAttempt((value) => value + 1); }}>Try again</button>
     </div>
   );
   if (!members) return <p className="members-feedback" role="status">Loading members…</p>;
@@ -382,7 +401,7 @@ export default function BusinessPage() {
         {session && subdomain && <BusinessCycleActions key={`${subdomain}:${session.access_token}:${activeCycle.id}`} accessToken={session.access_token} groupSlug={subdomain} cycleId={activeCycle.id} requiredMonthlyContribution={activeCycle.details?.requiredMonthlyContribution} />}
       </div>
       <p>Shares, loan payments, loan disbursements, and penalties for members of {group?.name || subdomain || "your COMSCA community"}.</p>
-      {session && subdomain ? <BusinessMembers key={`${subdomain}:${session.access_token}:${activeCycle.id}:${revision}`} cycleId={activeCycle.id} /> : <p role="status">Please sign in through your community’s URL to view business.</p>}
+      {session && subdomain ? <BusinessMembers key={`${subdomain}:${session.access_token}:${activeCycle.id}:${revision}`} cycleId={activeCycle.id} accessToken={session.access_token} groupSlug={subdomain} /> : <p role="status">Please sign in through your community’s URL to view business.</p>}
     </main>
   );
 }

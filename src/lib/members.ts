@@ -9,6 +9,13 @@ export type Member = {
   phone: string | null;
 };
 
+export type CycleMember = Member & {
+  totalShares: string;
+  remainingLoan: string;
+  unpaidPenalties: string;
+  unpaidContributions: string;
+};
+
 export type NewMember = { first_name: string; family_name: string; phone: string; address: string };
 
 export async function addMembersToCurrentCycle(accessToken: string, groupSlug: string, users: Array<string | number>) {
@@ -83,6 +90,47 @@ async function requestMembers(accessToken: string, groupSlug: string, signal?: A
     throw new Error("Unable to load members. Please try again.");
   }
   return body;
+}
+
+export async function fetchCycleMembers(accessToken: string, groupSlug: string, cycleId: string | number, signal?: AbortSignal): Promise<CycleMember[]> {
+  if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
+  const base = (process.env.NEXT_PUBLIC_API_URL ||
+    "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
+  const response = await fetch(`${base}/cycle/members`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${accessToken}`, "x-group-slug": groupSlug },
+    cache: "no-store",
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
+  });
+  const body = await response.json();
+  if (!response.ok || body?.success !== true || !Array.isArray(body.members)) {
+    throw new Error(typeof body?.error === "string" ? body.error : "Unable to load current cycle members. Please try again.");
+  }
+  if ((typeof body.current_cycle_id !== "string" && typeof body.current_cycle_id !== "number") || String(body.current_cycle_id) !== String(cycleId)) {
+    throw new Error("The current cycle has changed or could not be verified. Please try again.");
+  }
+
+  return body.members.map((member: unknown): CycleMember => {
+    if (!member || typeof member !== "object" || !("id" in member) ||
+      (typeof member.id !== "string" && typeof member.id !== "number")) {
+      throw new Error("Unable to load current cycle members. Please try again.");
+    }
+    const parsed = parseMembers([member])[0];
+    const fields = member as Record<string, unknown>;
+    const amount = (value: unknown) => {
+      if ((typeof value !== "string" && typeof value !== "number") || String(value).trim() === "" || !Number.isFinite(Number(value)) || Number(value) < 0) {
+        throw new Error("Unable to load current cycle members. Please try again.");
+      }
+      return String(value);
+    };
+    return {
+      ...parsed,
+      totalShares: amount(fields.total_shares),
+      remainingLoan: amount(fields.remaining_loan),
+      unpaidPenalties: amount(fields.unpaid_penalties),
+      unpaidContributions: amount(fields.unpaid_contributions),
+    };
+  });
 }
 
 function parseMembers(users: unknown[]): Member[] {

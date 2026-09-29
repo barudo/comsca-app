@@ -181,3 +181,38 @@ test("one shared member snapshot supports all members and current-cycle views wi
   assert.equal(snapshot.members.length, 2);
   assert.equal(fetch.mock.callCount(), 1);
 });
+
+test("business cycle members load member balances from the authenticated active-cycle endpoint", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.ok(url.endsWith("/cycle/members"));
+    assert.equal(options.method, "GET");
+    assert.equal(options.headers.Authorization, "Bearer access");
+    assert.equal(options.headers["x-group-slug"], "cebu");
+    assert.equal(options.cache, "no-store");
+    return Response.json({
+      success: true,
+      current_cycle_id: "5",
+      members: [{
+        id: "11", first_name: "Fely", family_name: "Chaves", address: "Main Street", email: null, phone: null,
+        total_shares: "6100.00", remaining_loan: "1200.50", unpaid_penalties: "30.00", unpaid_contributions: "20.00",
+      }],
+    });
+  });
+  const { fetchCycleMembers } = await import("../src/lib/members.ts");
+  assert.deepEqual(await fetchCycleMembers("access", "cebu", 5), [{
+    id: "11", first_name: "Fely", family_name: "Chaves", address: "Main Street", name: "Fely Chaves", email: null, phone: null,
+    totalShares: "6100.00", remainingLoan: "1200.50", unpaidPenalties: "30.00", unpaidContributions: "20.00",
+  }]);
+});
+
+test("cycle member balances reject stale cycles and malformed financial amounts", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({ success: true, current_cycle_id: "4", members: [] }));
+  const { fetchCycleMembers } = await import("../src/lib/members.ts");
+  await assert.rejects(fetchCycleMembers("access", "cebu", 5), /cycle has changed/);
+  fetch.mock.mockImplementation(async () => Response.json({
+    success: true,
+    current_cycle_id: "5",
+    members: [{ id: "11", first_name: "Fely", family_name: "Chaves", total_shares: "invalid", remaining_loan: "0", unpaid_penalties: "0", unpaid_contributions: "0" }],
+  }));
+  await assert.rejects(fetchCycleMembers("access", "cebu", 5), /Unable to load current cycle members/);
+});
