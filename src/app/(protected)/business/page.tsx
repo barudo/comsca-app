@@ -14,7 +14,7 @@ import { chargePenalty } from "@/lib/penalties";
 import { canViewBusiness } from "@/lib/auth";
 import { fetchCycleMembers, type CycleMember } from "@/lib/members";
 
-const actions = ["Shares and Payments", "Disburse Loans", "Penalty"] as const;
+const actions = ["Shares and Payments", "Disburse Loan", "Charge Penalty"] as const;
 const paymentOptions = ["Share purchase", "Pay Loan", "Pay Penalty", "Contribution"] as const;
 type PaymentOption = typeof paymentOptions[number];
 type CheckoutItem = { id: number; type: PaymentOption; amountCents: number; shares?: number; debitAccount?: LedgerAccount; creditAccount?: LedgerAccount };
@@ -53,12 +53,12 @@ function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selec
   const [amount, setAmount] = useState("");
   const [penaltyAmount, setPenaltyAmount] = useState(activeCycle?.details?.absencePenalty ?? "");
   const currentAction = selection.action === "Shares and Payments" ? paymentOption : selection.action;
-  const isDisbursement = currentAction === "Disburse Loans";
+  const isDisbursement = currentAction === "Disburse Loan";
   const isSharePurchase = currentAction === "Share purchase";
   const isContribution = currentAction === "Contribution";
   const isLoanPayment = currentAction === "Pay Loan";
   const isPenaltyPayment = currentAction === "Pay Penalty";
-  const isPenalty = selection.action === "Penalty";
+  const isPenalty = selection.action === "Charge Penalty";
   const [notice, setNotice] = useState("");
   const [items, setItems] = useState<CheckoutItem[]>([]);
   const [checkingOut, setCheckingOut] = useState(false);
@@ -276,7 +276,7 @@ function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selec
         <button className="cycle-close" type="button" aria-label="Close member action" disabled={checkingOut} onClick={onClose}>×</button>
       </div>
       <div className="business-selected-member"><span className="eyebrow">MEMBER</span><h3 id="business-member-name">{selection.member.name || "Unnamed member"}</h3></div>
-      <p id="business-action-description">{isCheckout ? "Add items below, then checkout to save payments." : isDisbursement ? "Submit to record the loan disbursement." : "Preview only. Submissions are not saved."} {selection.action === "Disburse Loans" && "Loan amounts below are sample data. "}</p>
+      <p id="business-action-description">{isCheckout ? "Add items below, then checkout to save payments." : isDisbursement ? "Submit to record the loan disbursement." : "Preview only. Submissions are not saved."} {selection.action === "Disburse Loan" && "Loan amounts below are sample data. "}</p>
       <form className="cycle-draft-form" onSubmit={handleSubmit}>
         <fieldset className="business-payment-fields" disabled={checkingOut}>
         {selection.action === "Shares and Payments" && (
