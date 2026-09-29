@@ -1,5 +1,5 @@
 export type PaymentEntry = {
-  type: "LOAN_PAYMENT" | "BUY_SHARE" | "PENALTY_PAYMENT";
+  type: "LOAN_PAYMENT" | "BUY_SHARE" | "PENALTY_PAYMENT" | "PAY_CONTRIBUTION";
   debit: string;
   credit: string;
   amount: string;
@@ -8,7 +8,7 @@ export type PaymentEntry = {
 export async function postPayments(accessToken: string, groupSlug: string, userId: string | number, cycleId: string | number, entries: PaymentEntry[]) {
   if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
   if (!String(userId).trim() || !String(cycleId).trim() || !entries.length) throw new Error("Select a member, cycle, and at least one payment.");
-  if (entries.some((entry) => !["LOAN_PAYMENT", "BUY_SHARE", "PENALTY_PAYMENT"].includes(entry.type) || !entry.debit.trim() || !entry.credit.trim() || !/^\d+\.\d{2}$/.test(entry.amount))) {
+  if (entries.some((entry) => !["LOAN_PAYMENT", "BUY_SHARE", "PENALTY_PAYMENT", "PAY_CONTRIBUTION"].includes(entry.type) || !entry.debit.trim() || !entry.credit.trim() || !/^\d+\.\d{2}$/.test(entry.amount))) {
     throw new Error("Each payment needs a valid type, debit account, credit account, and amount.");
   }
   const base = (process.env.NEXT_PUBLIC_API_URL ||

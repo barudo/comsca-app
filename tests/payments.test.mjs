@@ -6,6 +6,7 @@ const entries = [
   { type: "LOAN_PAYMENT", debit: "101", credit: "102", amount: "600.00" },
   { type: "BUY_SHARE", debit: "101", credit: "106", amount: "300.00" },
   { type: "PENALTY_PAYMENT", debit: "101", credit: "107", amount: "50.00" },
+  { type: "PAY_CONTRIBUTION", debit: "101", credit: "108", amount: "125.50" },
 ];
 
 test("checkout posts the payment contract with community authentication", async (t) => {

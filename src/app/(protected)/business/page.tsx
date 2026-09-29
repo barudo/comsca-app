@@ -16,7 +16,7 @@ import { getActiveCycleMembers, type Member } from "@/lib/members";
 const actions = ["Shares and Payments", "Disburse Loans", "Penalty"] as const;
 const paymentOptions = ["Share purchase", "Pay Loan", "Pay Penalty", "Contribution"] as const;
 type PaymentOption = typeof paymentOptions[number];
-type CheckoutItem = { id: number; type: Exclude<PaymentOption, "Contribution">; amountCents: number; shares?: number; debitAccount?: LedgerAccount; creditAccount?: LedgerAccount };
+type CheckoutItem = { id: number; type: PaymentOption; amountCents: number; shares?: number; debitAccount?: LedgerAccount; creditAccount?: LedgerAccount };
 type BusinessAction = typeof actions[number];
 type Selection = { action: BusinessAction; member: Member; trigger: HTMLButtonElement };
 const pricePerShare = 100;
@@ -126,9 +126,9 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (checkoutInFlight.current || paymentOption === "Contribution" && isCheckout) return;
+    if (checkoutInFlight.current) return;
     setCheckoutError("");
-    const value = isSharePurchase ? Number(sharesAmount) : isPenalty ? Number(penaltyAmount) : Number(amount);
+    const value = isSharePurchase ? Number(sharesAmount) : isContribution ? Number(contributionAmount) : isPenalty ? Number(penaltyAmount) : Number(amount);
     if (isDisbursement) {
       if (!accessToken || !subdomain || cycleId === undefined || selection.member.id === undefined || !debitAccount || !creditAccount || accountsError) {
         setCheckoutError("Select a member, active cycle, loan account, and funds disbursement account.");
@@ -157,9 +157,8 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
       return;
     }
     if (isCheckout) {
-      if (paymentOption === "Contribution") return;
       const amountCents = Math.round(value * 100);
-      if (!Number.isSafeInteger(amountCents) || amountCents < 0 || !Number.isSafeInteger(totalCents + amountCents)) {
+      if (!Number.isSafeInteger(amountCents) || amountCents < 0 || (isContribution && amountCents === 0) || !Number.isSafeInteger(totalCents + amountCents)) {
         setNotice("Enter a valid amount within the supported range.");
         return;
       }
@@ -167,11 +166,11 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         setNotice("Loan payments cannot exceed the remaining balance.");
         return;
       }
-      if ((isSharePurchase || isLoanPayment || isPenaltyPayment) && (!debitAccount || !creditAccount || accountsError)) {
-        setNotice(isPenaltyPayment ? "Select asset accounts for funds received and penalty income before adding a penalty payment." : isLoanPayment ? "Select asset accounts for funds received and the loan before adding a loan payment." : "Select an asset account and an equity account before adding a share purchase.");
+      if (!debitAccount || !creditAccount || accountsError) {
+        setNotice(isContribution ? "Select asset accounts for funds received and the contribution before adding a contribution." : isPenaltyPayment ? "Select asset accounts for funds received and penalty income before adding a penalty payment." : isLoanPayment ? "Select asset accounts for funds received and the loan before adding a loan payment." : "Select an asset account and an equity account before adding a share purchase.");
         return;
       }
-      const item: CheckoutItem = { id: nextItemId.current++, type: paymentOption, amountCents, ...(isSharePurchase ? { shares: Number(shareCount) } : {}), ...((isSharePurchase || isLoanPayment || isPenaltyPayment) ? { debitAccount, creditAccount } : {}) };
+      const item: CheckoutItem = { id: nextItemId.current++, type: paymentOption, amountCents, ...(isSharePurchase ? { shares: Number(shareCount) } : {}), debitAccount, creditAccount };
       setItems((current) => [...current, item]);
       setNotice(`${paymentOption} added to checkout.`);
       return;
@@ -193,7 +192,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
       const entries: PaymentEntry[] = items.map((item) => {
         if (!item.debitAccount || !item.creditAccount) throw new Error("Choose debit and credit accounts for every payment.");
         return {
-          type: item.type === "Share purchase" ? "BUY_SHARE" : item.type === "Pay Penalty" ? "PENALTY_PAYMENT" : "LOAN_PAYMENT",
+          type: item.type === "Contribution" ? "PAY_CONTRIBUTION" : item.type === "Share purchase" ? "BUY_SHARE" : item.type === "Pay Penalty" ? "PENALTY_PAYMENT" : "LOAN_PAYMENT",
           debit: String(item.debitAccount.id),
           credit: String(item.creditAccount.id),
           amount: `${Math.floor(item.amountCents / 100)}.${String(item.amountCents % 100).padStart(2, "0")}`,
@@ -217,7 +216,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         <button className="cycle-close" type="button" aria-label="Close member action" disabled={checkingOut} onClick={onClose}>×</button>
       </div>
       <div className="business-selected-member"><span className="eyebrow">MEMBER</span><h3 id="business-member-name">{selection.member.name || "Unnamed member"}</h3></div>
-      <p id="business-action-description">{isContribution ? "Contribution is a placeholder. Contributions cannot be added or submitted yet." : isCheckout ? "Add items below, then checkout to save payments." : isDisbursement ? "Submit to record the loan disbursement." : "Preview only. Submissions are not saved."} {(isLoanPayment || selection.action === "Disburse Loans") && "Loan amounts below are sample data. "}</p>
+      <p id="business-action-description">{isCheckout ? "Add items below, then checkout to save payments." : isDisbursement ? "Submit to record the loan disbursement." : "Preview only. Submissions are not saved."} {(isLoanPayment || selection.action === "Disburse Loans") && "Loan amounts below are sample data. "}</p>
       <form className="cycle-draft-form" onSubmit={handleSubmit}>
         <fieldset className="business-payment-fields" disabled={checkingOut}>
         {selection.action === "Shares and Payments" && (
@@ -245,7 +244,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         ) : isContribution ? (
           <div className="field">
             <label htmlFor="business-contribution-amount">Contribution (₱)</label>
-            <input ref={firstInput} id="business-contribution-amount" name="contribution_amount" type="number" min="0.01" step="0.01" placeholder="0.00" value={contributionAmount} onChange={(event) => setContributionAmount(event.target.value)} />
+            <input ref={firstInput} id="business-contribution-amount" name="contribution_amount" type="number" min="0.01" step="0.01" placeholder="0.00" required value={contributionAmount} onChange={(event) => { setContributionAmount(event.target.value); setNotice(""); }} />
           </div>
         ) : isPenalty ? (
           <div className="field">
@@ -276,7 +275,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
         </div>
         <div className="cycle-drawer-footer">
           {!isCheckout && <button type="button" className="cycle-cancel" disabled={checkingOut} onClick={onClose}>Cancel</button>}
-          <button type="submit" className="submit-button" disabled={isContribution || (isDisbursement && selection.member.id === undefined) || (isCheckout && isLoanPayment && remainingLoanAmount <= 0) || ((isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement || isContribution) && (!debitAccount || !creditAccount || !!accountsError))}>{isContribution ? "Add Contribution (coming soon)" : isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : checkingOut ? "Submitting…" : "Submit"}</button>
+          <button type="submit" className="submit-button" disabled={(isDisbursement && selection.member.id === undefined) || (isCheckout && isLoanPayment && remainingLoanAmount <= 0) || ((isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement || isContribution) && (!debitAccount || !creditAccount || !!accountsError))}>{isContribution ? "Add Contribution" : isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : checkingOut ? "Submitting…" : "Submit"}</button>
         </div>
         </fieldset>
       </form>
@@ -288,7 +287,7 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
               <caption>{items.length} {items.length === 1 ? "item" : "items"}</caption>
               <thead><tr><th scope="col">Item</th><th scope="col">Amount</th><th scope="col">Action</th></tr></thead>
               <tbody>
-                {items.length === 0 && <tr><td colSpan={3}>Add a share purchase, loan payment, or penalty payment above.</td></tr>}
+                {items.length === 0 && <tr><td colSpan={3}>Add a share purchase, loan payment, penalty payment, or contribution above.</td></tr>}
                 {items.map((item) => (
                   <tr key={item.id}>
                     <th scope="row">{item.type}{item.shares !== undefined && <span className="business-checkout-detail">{item.shares} {item.shares === 1 ? "share" : "shares"}</span>}{item.debitAccount && <span className="business-checkout-detail">Debit: {item.debitAccount.name}</span>}{item.creditAccount && <span className="business-checkout-detail">Credit: {item.creditAccount.name}</span>}</th>
