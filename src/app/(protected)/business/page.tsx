@@ -77,7 +77,20 @@ function ActionPanel({ selection, onClose }: { selection: Selection; onClose: ()
     if ((!isCheckout && !isDisbursement) || !accessToken || !subdomain || cycleId === undefined) return;
     const controller = new AbortController();
     fetchCycleAccounts(accessToken, subdomain, cycleId, controller.signal).then((accounts) => {
-      if (!controller.signal.aborted) setAccounts(accounts);
+      if (controller.signal.aborted) return;
+      setAccounts(accounts);
+      if (isCheckout) {
+        const defaultAccountId = (name: string, type: LedgerAccount["type"]) => String(accounts.find((account) => account.type === type && account.name.trim().toLowerCase() === name.toLowerCase())?.id ?? "");
+        const cashId = defaultAccountId("Cash", "ASSET");
+        setFundsAccountId(cashId);
+        setLoanFundsAccountId(cashId);
+        setPenaltyFundsAccountId(cashId);
+        setContributionFundsAccountId(cashId);
+        setCapitalAccountId(defaultAccountId("Equity", "EQUITY"));
+        setLoanAccountId(defaultAccountId("Loans Receivable", "ASSET"));
+        setPenaltyIncomeAccountId(defaultAccountId("Penalties Receivable", "ASSET"));
+        setContributionAccountId(defaultAccountId("Contributions Receivable", "ASSET"));
+      }
     }).catch((cause: unknown) => {
       if (!controller.signal.aborted) setAccountsError(cause instanceof Error ? cause.message : "Unable to load cycle accounts.");
     });
