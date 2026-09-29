@@ -91,6 +91,10 @@ function ActionPanel({ selection, onClose, onPaymentsSaved }: { selection: Selec
         setLoanAccountId(defaultAccountId("Loans Receivable", "ASSET"));
         setPenaltyIncomeAccountId(defaultAccountId("Penalties Receivable", "ASSET"));
         setContributionAccountId(defaultAccountId("Contributions Receivable", "ASSET"));
+      } else if (isDisbursement) {
+        const defaultAssetAccountId = (name: string) => String(accounts.find((account) => account.type === "ASSET" && account.name.trim().toLowerCase() === name.toLowerCase())?.id ?? "");
+        setDisbursementLoanAccountId(defaultAssetAccountId("Loans Receivable"));
+        setDisbursementFundsAccountId(defaultAssetAccountId("Cash"));
       }
     }).catch((cause: unknown) => {
       if (!controller.signal.aborted) setAccountsError(cause instanceof Error ? cause.message : "Unable to load cycle accounts.");
