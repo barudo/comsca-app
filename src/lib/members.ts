@@ -96,7 +96,7 @@ export async function fetchCycleMembers(accessToken: string, groupSlug: string, 
   if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
   const base = (process.env.NEXT_PUBLIC_API_URL ||
     "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
-  const response = await fetch(`${base}/cycle/members`, {
+  const response = await fetch(`${base}/cycles/members`, {
     method: "GET",
     headers: { Authorization: `Bearer ${accessToken}`, "x-group-slug": groupSlug },
     cache: "no-store",

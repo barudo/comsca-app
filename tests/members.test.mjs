@@ -184,7 +184,7 @@ test("one shared member snapshot supports all members and current-cycle views wi
 
 test("business cycle members load member balances from the authenticated active-cycle endpoint", async (t) => {
   t.mock.method(globalThis, "fetch", async (url, options) => {
-    assert.ok(url.endsWith("/cycle/members"));
+    assert.ok(url.endsWith("/cycles/members"));
     assert.equal(options.method, "GET");
     assert.equal(options.headers.Authorization, "Bearer access");
     assert.equal(options.headers["x-group-slug"], "cebu");
