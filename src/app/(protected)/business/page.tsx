@@ -24,7 +24,7 @@ const pricePerShare = 100;
 const previewAppliedLoan = 10000;
 const pesos = (amount: number) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(amount);
 
-function ActionPanel({ selection, onClose, onPaymentsSaved }: { selection: Selection; onClose: () => void; onPaymentsSaved: (memberId: string | number) => Promise<CycleMember> }) {
+function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selection; onClose: () => void; onMemberUpdated: (memberId: string | number) => Promise<CycleMember> }) {
   const { activeCycle } = useCycles();
   const { session } = useAuth();
   const { subdomain } = useCommunity();
@@ -136,6 +136,20 @@ function ActionPanel({ selection, onClose, onPaymentsSaved }: { selection: Selec
     };
   }, [selection]);
 
+  async function refreshMemberAfterSave(action: string) {
+    if (selection.member.id === undefined) {
+      setCheckoutError(`${action} succeeded, but member balances could not be refreshed because the member ID is unavailable.`);
+      return;
+    }
+    try {
+      setMemberBalances(await onMemberUpdated(selection.member.id));
+    } catch (cause) {
+      setCheckoutError(cause instanceof Error
+        ? `${action} succeeded, but member balances could not be refreshed: ${cause.message}`
+        : `${action} succeeded, but member balances could not be refreshed.`);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (checkoutInFlight.current) return;
@@ -160,6 +174,7 @@ function ActionPanel({ selection, onClose, onPaymentsSaved }: { selection: Selec
         });
         setAmount("");
         setNotice(`Loan disbursement saved: ${pesos(value)} for ${selection.member.name || "unnamed member"}.`);
+        await refreshMemberAfterSave("Loan disbursement");
       } catch (cause) {
         setCheckoutError(cause instanceof Error ? cause.message : "Unable to disburse the loan.");
       } finally {
@@ -210,6 +225,7 @@ function ActionPanel({ selection, onClose, onPaymentsSaved }: { selection: Selec
           credit: String(creditAccount.id),
         });
         setNotice(`Penalty charged: ${pesos(Number(penaltyAmount))} for ${selection.member.name || "unnamed member"}.`);
+        await refreshMemberAfterSave("Penalty charge");
       } catch (cause) {
         setCheckoutError(cause instanceof Error ? cause.message : "Unable to charge the penalty.");
       } finally {
@@ -244,13 +260,7 @@ function ActionPanel({ selection, onClose, onPaymentsSaved }: { selection: Selec
       await postPayments(accessToken, subdomain, selection.member.id, cycleId, entries);
       setItems([]);
       setNotice(`Payments saved: ${pesos(totalCents / 100)} for ${selection.member.name || "unnamed member"}.`);
-      try {
-        setMemberBalances(await onPaymentsSaved(selection.member.id));
-      } catch (cause) {
-        setCheckoutError(cause instanceof Error
-          ? `Payments were saved, but member balances could not be refreshed: ${cause.message}`
-          : "Payments were saved, but member balances could not be refreshed.");
-      }
+      await refreshMemberAfterSave("Payments");
     } catch (cause) {
       setCheckoutError(cause instanceof Error ? cause.message : "Unable to complete checkout.");
     } finally {
@@ -432,7 +442,7 @@ function BusinessMembers({ cycleId, accessToken, groupSlug }: { cycleId: string 
           </table>
         </div>
       )}
-      {selection && <ActionPanel key={`${selection.action}:${selection.member.id}`} selection={selection} onClose={() => setSelection(null)} onPaymentsSaved={refreshMemberBalances} />}
+      {selection && <ActionPanel key={`${selection.action}:${selection.member.id}`} selection={selection} onClose={() => setSelection(null)} onMemberUpdated={refreshMemberBalances} />}
     </>
   );
 }
