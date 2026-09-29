@@ -40,6 +40,8 @@ function ActionPanel({ selection, onClose, onPaymentsSaved }: { selection: Selec
   const [disbursementLoanAccountId, setDisbursementLoanAccountId] = useState("");
   const [disbursementFundsAccountId, setDisbursementFundsAccountId] = useState("");
   const [penaltyFundsAccountId, setPenaltyFundsAccountId] = useState("");
+  const [penaltyPaymentReceivableAccountId, setPenaltyPaymentReceivableAccountId] = useState("");
+  const [penaltyReceivableAccountId, setPenaltyReceivableAccountId] = useState("");
   const [penaltyIncomeAccountId, setPenaltyIncomeAccountId] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
   const firstInput = useRef<HTMLInputElement>(null);
@@ -69,13 +71,13 @@ function ActionPanel({ selection, onClose, onPaymentsSaved }: { selection: Selec
   const remainingLoanAmount = Math.max(0, (Number(memberBalances.remainingLoan) * 100 - queuedLoanCents) / 100);
   const remainingPenaltyAmount = Math.max(0, (Number(memberBalances.unpaidPenalties) * 100 - queuedPenaltyCents) / 100);
 
-  const debitAccount = accounts?.find((account) => String(account.id) === (isContribution ? contributionFundsAccountId : isDisbursement ? disbursementLoanAccountId : isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId) && account.type === "ASSET");
-  const creditAccount = accounts?.find((account) => String(account.id) === (isContribution ? contributionAccountId : isDisbursement ? disbursementFundsAccountId : isPenaltyPayment ? penaltyIncomeAccountId : isLoanPayment ? loanAccountId : capitalAccountId) && account.type === (isSharePurchase ? "EQUITY" : "ASSET"));
+  const debitAccount = accounts?.find((account) => String(account.id) === (isPenalty ? penaltyReceivableAccountId : isContribution ? contributionFundsAccountId : isDisbursement ? disbursementLoanAccountId : isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId) && account.type === "ASSET");
+  const creditAccount = accounts?.find((account) => String(account.id) === (isPenalty ? penaltyIncomeAccountId : isContribution ? contributionAccountId : isDisbursement ? disbursementFundsAccountId : isPenaltyPayment ? penaltyPaymentReceivableAccountId : isLoanPayment ? loanAccountId : capitalAccountId) && account.type === (isPenalty ? "INCOME" : isSharePurchase ? "EQUITY" : "ASSET"));
   const accessToken = session?.access_token;
   const cycleId = activeCycle?.id;
 
   useEffect(() => {
-    if ((!isCheckout && !isDisbursement) || !accessToken || !subdomain || cycleId === undefined) return;
+    if ((!isCheckout && !isDisbursement && !isPenalty) || !accessToken || !subdomain || cycleId === undefined) return;
     const controller = new AbortController();
     fetchCycleAccounts(accessToken, subdomain, cycleId, controller.signal).then((accounts) => {
       if (controller.signal.aborted) return;
@@ -89,18 +91,22 @@ function ActionPanel({ selection, onClose, onPaymentsSaved }: { selection: Selec
         setContributionFundsAccountId(cashId);
         setCapitalAccountId(defaultAccountId("Equity", "EQUITY"));
         setLoanAccountId(defaultAccountId("Loans Receivable", "ASSET"));
-        setPenaltyIncomeAccountId(defaultAccountId("Penalties Receivable", "ASSET"));
+        setPenaltyPaymentReceivableAccountId(defaultAccountId("Penalties Receivable", "ASSET"));
         setContributionAccountId(defaultAccountId("Contributions Receivable", "ASSET"));
       } else if (isDisbursement) {
         const defaultAssetAccountId = (name: string) => String(accounts.find((account) => account.type === "ASSET" && account.name.trim().toLowerCase() === name.toLowerCase())?.id ?? "");
         setDisbursementLoanAccountId(defaultAssetAccountId("Loans Receivable"));
         setDisbursementFundsAccountId(defaultAssetAccountId("Cash"));
+      } else if (isPenalty) {
+        const defaultAccountId = (name: string, type: LedgerAccount["type"]) => String(accounts.find((account) => account.type === type && account.name.trim().toLowerCase() === name.toLowerCase())?.id ?? "");
+        setPenaltyReceivableAccountId(defaultAccountId("Penalties Receivable", "ASSET"));
+        setPenaltyIncomeAccountId(defaultAccountId("Penalty Income", "INCOME"));
       }
     }).catch((cause: unknown) => {
       if (!controller.signal.aborted) setAccountsError(cause instanceof Error ? cause.message : "Unable to load cycle accounts.");
     });
     return () => controller.abort();
-  }, [isCheckout, isDisbursement, accessToken, subdomain, cycleId, accountsAttempt]);
+  }, [isCheckout, isDisbursement, isPenalty, accessToken, subdomain, cycleId, accountsAttempt]);
 
   function updateShareCount(value: string) {
     setShareCount(value);
@@ -292,18 +298,18 @@ function ActionPanel({ selection, onClose, onPaymentsSaved }: { selection: Selec
             </div>
           </>
         )}
-        {(isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement || isContribution) && (accountsError ? (
+        {(isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement || isContribution || isPenalty) && (accountsError ? (
           <div><p role="alert">{accountsError}</p><button type="button" className="text-button" onClick={() => { setAccountsError(""); setAccounts(null); setAccountsAttempt((value) => value + 1); }}>Try again</button></div>
         ) : accounts === null ? <p role="status">Loading cycle accounts…</p> : (
-          <PaymentAccounts accounts={accounts} debitLabel={isDisbursement ? "Loan Account" : "Funds Received Into"} creditType={isSharePurchase ? "EQUITY" : "ASSET"} creditLabel={isContribution ? "Contribution Account" : isDisbursement ? "Funds Disbursed From" : isPenaltyPayment ? "Penalty Income Account" : isLoanPayment ? "Loan Account" : "Share Capital Account"}
-            fundsAccountId={isContribution ? contributionFundsAccountId : isDisbursement ? disbursementLoanAccountId : isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId} creditAccountId={isContribution ? contributionAccountId : isDisbursement ? disbursementFundsAccountId : isPenaltyPayment ? penaltyIncomeAccountId : isLoanPayment ? loanAccountId : capitalAccountId}
-            onFundsAccountChange={(id) => { (isContribution ? setContributionFundsAccountId : isDisbursement ? setDisbursementLoanAccountId : isPenaltyPayment ? setPenaltyFundsAccountId : isLoanPayment ? setLoanFundsAccountId : setFundsAccountId)(id); setNotice(""); }}
-            onCreditAccountChange={(id) => { (isContribution ? setContributionAccountId : isDisbursement ? setDisbursementFundsAccountId : isPenaltyPayment ? setPenaltyIncomeAccountId : isLoanPayment ? setLoanAccountId : setCapitalAccountId)(id); setNotice(""); }} />
+          <PaymentAccounts accounts={accounts} debitLabel={isPenalty ? "Receivable Account" : isDisbursement ? "Loan Account" : "Funds Received Into"} creditType={isPenalty ? "INCOME" : isSharePurchase ? "EQUITY" : "ASSET"} creditLabel={isPenalty ? "Income Account" : isContribution ? "Contribution Account" : isDisbursement ? "Funds Disbursed From" : isPenaltyPayment ? "Penalty Income Account" : isLoanPayment ? "Loan Account" : "Share Capital Account"}
+            fundsAccountId={isPenalty ? penaltyReceivableAccountId : isContribution ? contributionFundsAccountId : isDisbursement ? disbursementLoanAccountId : isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId} creditAccountId={isPenalty ? penaltyIncomeAccountId : isContribution ? contributionAccountId : isDisbursement ? disbursementFundsAccountId : isPenaltyPayment ? penaltyPaymentReceivableAccountId : isLoanPayment ? loanAccountId : capitalAccountId}
+            onFundsAccountChange={(id) => { (isPenalty ? setPenaltyReceivableAccountId : isContribution ? setContributionFundsAccountId : isDisbursement ? setDisbursementLoanAccountId : isPenaltyPayment ? setPenaltyFundsAccountId : isLoanPayment ? setLoanFundsAccountId : setFundsAccountId)(id); setNotice(""); }}
+            onCreditAccountChange={(id) => { (isPenalty ? setPenaltyIncomeAccountId : isContribution ? setContributionAccountId : isDisbursement ? setDisbursementFundsAccountId : isPenaltyPayment ? setPenaltyPaymentReceivableAccountId : isLoanPayment ? setLoanAccountId : setCapitalAccountId)(id); setNotice(""); }} />
         ))}
         </div>
         <div className="cycle-drawer-footer">
           {!isCheckout && <button type="button" className="cycle-cancel" disabled={checkingOut} onClick={onClose}>Cancel</button>}
-          <button type="submit" className="submit-button" disabled={(isDisbursement && selection.member.id === undefined) || (isCheckout && isLoanPayment && remainingLoanAmount <= 0) || (isCheckout && isPenaltyPayment && remainingPenaltyAmount <= 0) || ((isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement || isContribution) && (!debitAccount || !creditAccount || !!accountsError))}>{isContribution ? "Add Contribution" : isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : checkingOut ? "Submitting…" : "Submit"}</button>
+          <button type="submit" className="submit-button" disabled={(isDisbursement && selection.member.id === undefined) || (isCheckout && isLoanPayment && remainingLoanAmount <= 0) || (isCheckout && isPenaltyPayment && remainingPenaltyAmount <= 0) || ((isSharePurchase || isLoanPayment || isPenaltyPayment || isDisbursement || isContribution || isPenalty) && (!debitAccount || !creditAccount || !!accountsError))}>{isContribution ? "Add Contribution" : isCheckout ? isSharePurchase ? "Add Share Purchase" : isLoanPayment ? "Add Loan Payment" : "Add Penalty Payment" : checkingOut ? "Submitting…" : "Submit"}</button>
         </div>
         </fieldset>
       </form>
