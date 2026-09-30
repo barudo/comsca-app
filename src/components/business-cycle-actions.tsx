@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { chargeContribution } from "@/lib/contributions";
+import { chargeInterest } from "@/lib/interests";
 import { PaymentAccounts } from "@/components/payment-accounts";
 import { fetchCycleAccounts, type LedgerAccount } from "@/lib/accounts";
 
@@ -63,7 +64,20 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, required
     event.preventDefault();
     if (!debit || !credit || error || inFlight.current || submitted) return;
     if (interest) {
-      setNotice(`Apply Loan Interest preview: debit ${debit.name}; credit ${credit.name}. No charges have been saved. This action is not connected yet.`);
+      inFlight.current = true;
+      setSubmitting(true);
+      setSubmitError("");
+      setNotice("");
+      try {
+        await chargeInterest(accessToken, groupSlug, { credit: String(credit.id), debit: String(debit.id) });
+        setSubmitted(true);
+        setNotice("Interest applied successfully.");
+      } catch (cause: unknown) {
+        setSubmitError(cause instanceof Error ? cause.message : "Unable to apply interest.");
+      } finally {
+        inFlight.current = false;
+        setSubmitting(false);
+      }
       return;
     }
     if (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) {
@@ -104,7 +118,6 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, required
             : <PaymentAccounts accounts={accounts} debitLabel={interest ? "Add Interest To" : "Charge To"} creditLabel={interest ? "Record Interest As" : "Record Contribution As"} creditType="INCOME" fundsAccountId={debitId} creditAccountId={creditId}
               onFundsAccountChange={(id) => { setDebitId(id); setNotice(""); }} onCreditAccountChange={(id) => { setCreditId(id); setNotice(""); }} />}
         </fieldset>
-        {interest && <p className="cycle-field-hint">Preview only. This action is not connected yet.</p>}
         <div className="cycle-drawer-footer">
           <button type="button" className="cycle-cancel" disabled={submitting} onClick={onClose}>{submitted ? "Close" : "Cancel"}</button>
           <button type="submit" className="submit-button" disabled={!debit || !credit || !!error || submitting || submitted}>{submitting ? "Charging…" : actionLabels[selection.action]}</button>
