@@ -383,15 +383,20 @@ function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selec
   );
 }
 
-function BusinessMembers({ cycleId, accessToken, groupSlug }: { cycleId: string | number; accessToken: string; groupSlug: string }) {
+function BusinessMembers({ cycleId, accessToken, groupSlug, communityName, requiredMonthlyContribution }: { cycleId: string | number; accessToken: string; groupSlug: string; communityName: string; requiredMonthlyContribution?: string }) {
   const [members, setMembers] = useState<CycleMember[] | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null);
 
-  async function refreshMemberBalances(memberId: string | number) {
+  async function refreshCycleMembers() {
     const cycleMembers = await fetchCycleMembers(accessToken, groupSlug, cycleId);
     setMembers(cycleMembers);
+    return cycleMembers;
+  }
+
+  async function refreshMemberBalances(memberId: string | number) {
+    const cycleMembers = await refreshCycleMembers();
     const refreshedMember = cycleMembers.find((member) => String(member.id) === String(memberId));
     if (!refreshedMember) throw new Error("The member was not found in the refreshed cycle.");
     return refreshedMember;
@@ -407,16 +412,27 @@ function BusinessMembers({ cycleId, accessToken, groupSlug }: { cycleId: string 
     return () => controller.abort();
   }, [accessToken, groupSlug, cycleId, attempt]);
 
-  if (error) return (
-    <div className="members-feedback">
-      <p role="alert">{error}</p>
-      <button type="button" className="text-button" onClick={() => { setMembers(null); setError(""); setAttempt((value) => value + 1); }}>Try again</button>
-    </div>
+  const businessHeading = (
+    <>
+      <div className="members-heading business-heading">
+        <h1>Business</h1>
+        <BusinessCycleActions accessToken={accessToken} groupSlug={groupSlug} cycleId={cycleId} requiredMonthlyContribution={requiredMonthlyContribution} onMembersUpdated={refreshCycleMembers} />
+      </div>
+      <p>Shares, loan payments, loan disbursements, and penalties for members of {communityName}.</p>
+    </>
   );
-  if (!members) return <p className="members-feedback" role="status">Loading members…</p>;
+
+  if (error) return (
+    <>{businessHeading}<div className="members-feedback">
+        <p role="alert">{error}</p>
+        <button type="button" className="text-button" onClick={() => { setMembers(null); setError(""); setAttempt((value) => value + 1); }}>Try again</button>
+      </div></>
+  );
+  if (!members) return <>{businessHeading}<p className="members-feedback" role="status">Loading members…</p></>;
 
   return (
     <>
+      {businessHeading}
       <div className="business-cycle-summary">
         <div><span className="eyebrow">BUSINESS</span><h2>Current cycle members</h2></div>
         <span>{members.length} {members.length === 1 ? "member" : "members"}</span>
@@ -463,12 +479,11 @@ export default function BusinessPage() {
 
   return (
     <main className="protected-content">
-      <div className="members-heading business-heading">
-        <h1>Business</h1>
-        {session && subdomain && <BusinessCycleActions key={`${subdomain}:${session.access_token}:${activeCycle.id}`} accessToken={session.access_token} groupSlug={subdomain} cycleId={activeCycle.id} requiredMonthlyContribution={activeCycle.details?.requiredMonthlyContribution} />}
-      </div>
-      <p>Shares, loan payments, loan disbursements, and penalties for members of {group?.name || subdomain || "your COMSCA community"}.</p>
-      {session && subdomain ? <BusinessMembers key={`${subdomain}:${session.access_token}:${activeCycle.id}:${revision}`} cycleId={activeCycle.id} accessToken={session.access_token} groupSlug={subdomain} /> : <p role="status">Please sign in through your community’s URL to view business.</p>}
+      {session && subdomain ? <BusinessMembers key={`${subdomain}:${session.access_token}:${activeCycle.id}:${revision}`} cycleId={activeCycle.id} accessToken={session.access_token} groupSlug={subdomain} communityName={group?.name || subdomain || "your COMSCA community"} requiredMonthlyContribution={activeCycle.details?.requiredMonthlyContribution} /> : <>
+        <div className="members-heading business-heading"><h1>Business</h1></div>
+        <p>Shares, loan payments, loan disbursements, and penalties for members of {group?.name || subdomain || "your COMSCA community"}.</p>
+        <p role="status">Please sign in through your community’s URL to view business.</p>
+      </>}
     </main>
   );
 }

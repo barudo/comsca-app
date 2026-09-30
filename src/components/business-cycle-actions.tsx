@@ -12,9 +12,9 @@ const actionLabels = {
 } as const;
 type Action = keyof typeof actionLabels;
 type Selection = { action: Action; trigger: HTMLButtonElement };
-type Context = { accessToken: string; groupSlug: string; cycleId: string | number; requiredMonthlyContribution?: string };
+type Context = { accessToken: string; groupSlug: string; cycleId: string | number; requiredMonthlyContribution?: string; onMembersUpdated: () => Promise<unknown> };
 
-function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, requiredMonthlyContribution, onClose }: Context & { selection: Selection; onClose: () => void }) {
+function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, requiredMonthlyContribution, onMembersUpdated, onClose }: Context & { selection: Selection; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const [accounts, setAccounts] = useState<LedgerAccount[] | null>(null);
@@ -33,6 +33,16 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, required
   const creditName = interest ? "Interest Income" : "Contribution Income";
   const debit = accounts?.find((account) => String(account.id) === debitId && account.type === "ASSET");
   const credit = accounts?.find((account) => String(account.id) === creditId && account.type === "INCOME");
+
+  async function refreshMembersAfterCharge(action: string) {
+    try {
+      await onMembersUpdated();
+    } catch (cause: unknown) {
+      setSubmitError(cause instanceof Error
+        ? `${action} succeeded, but cycle members could not be refreshed: ${cause.message}`
+        : `${action} succeeded, but cycle members could not be refreshed.`);
+    }
+  }
 
   useEffect(() => {
     const panel = dialog.current;
@@ -72,6 +82,7 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, required
         await chargeInterest(accessToken, groupSlug, { credit: String(credit.id), debit: String(debit.id) });
         setSubmitted(true);
         setNotice("Interest applied successfully.");
+        await refreshMembersAfterCharge("Interest application");
       } catch (cause: unknown) {
         setSubmitError(cause instanceof Error ? cause.message : "Unable to apply interest.");
       } finally {
@@ -92,6 +103,7 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, required
       await chargeContribution(accessToken, groupSlug, { amount: Number(amount).toFixed(2), debit: String(debit.id), credit: String(credit.id) });
       setSubmitted(true);
       setNotice("Contribution charged successfully.");
+      await refreshMembersAfterCharge("Contribution charge");
     } catch (cause: unknown) {
       setSubmitError(cause instanceof Error ? cause.message : "Unable to charge contribution.");
     } finally {
