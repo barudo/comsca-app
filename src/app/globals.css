@@ -861,13 +861,54 @@ h1 > span {
   font-size: 36px;
   letter-spacing: -1px;
 }
+.dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 32px;
+}
+.dashboard-metric {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.dashboard-metric h2 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.dashboard-metric-value {
+  margin: 18px 0 8px;
+  color: var(--ink);
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.dashboard-metric-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
 @media (max-width: 600px) {
+  .dashboard-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .protected-nav {
     gap: 16px;
   }
   .protected-links {
     order: 3;
     width: 100%;
+  }
+}
+@media (max-width: 380px) {
+  .dashboard-metrics {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
