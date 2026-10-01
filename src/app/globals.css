@@ -655,6 +655,60 @@ h1 > span {
 .members-table tbody th {
   font-weight: 500;
 }
+.member-ledger-wrapper {
+  margin-top: 24px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.member-ledger {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  text-align: left;
+}
+.member-ledger caption {
+  padding: 16px 20px;
+  color: var(--muted);
+  text-align: left;
+}
+.member-ledger th,
+.member-ledger td {
+  padding: 14px 16px;
+  border-top: 1px solid var(--line);
+  vertical-align: top;
+}
+.member-ledger thead {
+  background: var(--pale);
+}
+.member-ledger th {
+  font-size: 13px;
+  font-weight: 600;
+}
+.member-ledger-transaction span,
+.member-ledger-transaction small {
+  display: block;
+}
+.member-ledger-transaction small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.member-ledger .member-ledger-amount {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.member-ledger tfoot {
+  background: var(--pale);
+}
+.member-ledger tfoot th,
+.member-ledger tfoot td {
+  border-top: 2px solid var(--line);
+  font-weight: 700;
+}
 .member-actions { display: flex; align-items: center; gap: 8px; }
 .members-bulk-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
 .members-bulk-actions .submit-button { width: auto; }

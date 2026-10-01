@@ -52,6 +52,7 @@ export function ProtectedNavigation() {
         <Brand href="/dashboard" />
         <nav aria-label="Main navigation" className="protected-links">
           <Link href="/dashboard" aria-current={pathname === "/dashboard" ? "page" : undefined}>Dashboard</Link>
+          <Link href="/my-account" aria-current={pathname === "/my-account" ? "page" : undefined}>My Account</Link>
           {canViewBusiness(user) && activeCycle && (
             <details
               key={`business:${pathname}`}
