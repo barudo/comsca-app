@@ -100,7 +100,7 @@ export default function MyAccountPage() {
               <tr>
                 <th scope="col">Date</th>
                 <th scope="col">Transaction</th>
-                <th scope="col">Ownership (Equity)</th>
+                <th scope="col">Shares</th>
                 <th scope="col">Loan</th>
                 <th scope="col">Contribution</th>
                 <th scope="col">Penalty</th>
