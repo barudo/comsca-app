@@ -14,7 +14,7 @@ function formatDate(value: string | null): string {
 }
 
 function formatAmount(cents: number): string {
-  return pesos.format(cents / 100);
+  return cents < 0 ? `(${pesos.format(Math.abs(cents) / 100)})` : pesos.format(cents / 100);
 }
 
 function LedgerAmount({ cents }: { cents: number }) {
