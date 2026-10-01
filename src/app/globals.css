@@ -534,6 +534,7 @@ h1 > span {
 .members-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .members-heading .submit-button { width: auto; margin: 0; }
 .add-member-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.add-member-button .add-member-label { font: inherit; }
 @media (max-width: 600px) {
   .add-member-label { display: none; }
   .members-heading .add-member-button { width: 44px; height: 44px; padding: 0; flex-shrink: 0; }
