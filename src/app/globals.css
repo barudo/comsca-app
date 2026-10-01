@@ -882,12 +882,18 @@ h1 > span {
   line-height: 1.4;
 }
 .dashboard-metric-value {
-  margin: 18px 0 8px;
+  margin: 18px 0 10px;
   color: var(--ink);
   font-size: 25px;
   font-weight: 700;
   line-height: 1.2;
   overflow-wrap: anywhere;
+}
+.dashboard-metric-description {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 .dashboard-metric-note {
   margin: 0;
