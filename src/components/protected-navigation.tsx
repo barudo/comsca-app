@@ -52,7 +52,6 @@ export function ProtectedNavigation() {
         <Brand href="/dashboard" />
         <nav aria-label="Main navigation" className="protected-links">
           <Link href="/dashboard" aria-current={pathname === "/dashboard" ? "page" : undefined}>Dashboard</Link>
-          <Link href="/my-account" aria-current={pathname === "/my-account" ? "page" : undefined}>My Account</Link>
           {canViewBusiness(user) && activeCycle && (
             <details
               key={`business:${pathname}`}
@@ -142,6 +141,7 @@ export function ProtectedNavigation() {
             >
               <summary className="protected-user">{user.name}<span aria-hidden="true">▾</span></summary>
               <nav className="protected-account-dropdown" aria-label="Account">
+                <Link href="/my-account" aria-current={pathname === "/my-account" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>My Account</Link>
                 <Link href="/profile" onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Profile</Link>
                 <button type="button" onClick={() => setSession(null)}>Logout</button>
               </nav>
