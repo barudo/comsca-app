@@ -780,7 +780,15 @@ h1 > span {
   border-top: 1px solid var(--line);
 }
 .chart-subaccounts dt {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   font-weight: 450;
+}
+.chart-subaccounts dt small {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 .chart-subaccounts dd {
   margin: 0;

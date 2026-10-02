@@ -1,117 +1,85 @@
 export const accountTypes = [
-  { key: "ASSET", label: "Assets", normalSide: "debit" },
-  { key: "LIABILITY", label: "Liabilities", normalSide: "credit" },
-  { key: "EQUITY", label: "Equity", normalSide: "credit" },
-  { key: "INCOME", label: "Income", normalSide: "credit" },
-  { key: "EXPENSE", label: "Expenses", normalSide: "debit" },
+  { key: "ASSET", label: "Assets" },
+  { key: "LIABILITY", label: "Liabilities" },
+  { key: "EQUITY", label: "Equity" },
+  { key: "INCOME", label: "Income" },
+  { key: "EXPENSE", label: "Expenses" },
 ] as const;
 
 export type AccountType = typeof accountTypes[number]["key"];
-export type JournalLine = {
-  accountType: AccountType;
-  accountName: string;
-  debitCents: number;
-  creditCents: number;
-};
-export type JournalEntry = {
-  groupSlug: string;
-  cycleId: string | number;
-  lines: JournalLine[];
-};
 export type AccountSummary = {
   type: AccountType;
   label: string;
   totalCents: number;
-  accounts: { name: string; balanceCents: number }[];
+  accounts: { id: string | number; code: string; name: string; balanceCents: number }[];
 };
 
-const placeholderAccounts: { type: AccountType; name: string }[] = [
-  { type: "ASSET", name: "Cash on Hand" },
-  { type: "ASSET", name: "Bank" },
-  { type: "ASSET", name: "GCash" },
-  { type: "ASSET", name: "Loans Receivable" },
-  { type: "ASSET", name: "Contributions Receivable" },
-  { type: "ASSET", name: "Penalties Receivable" },
-  { type: "LIABILITY", name: "Member Deposits" },
-  { type: "LIABILITY", name: "Accounts Payable" },
-  { type: "EQUITY", name: "Member Equity" },
-  { type: "EQUITY", name: "Retained Earnings" },
-  { type: "INCOME", name: "Contribution Income" },
-  { type: "INCOME", name: "Interest Income" },
-  { type: "INCOME", name: "Penalty Income" },
-  { type: "EXPENSE", name: "Administrative Expense" },
-  { type: "EXPENSE", name: "Loan Loss Expense" },
-];
-
-const placeholderLines: JournalLine[][] = [
-  [
-    { accountType: "ASSET", accountName: "Cash on Hand", debitCents: 500000, creditCents: 0 },
-    { accountType: "EQUITY", accountName: "Member Equity", debitCents: 0, creditCents: 500000 },
-  ],
-  [
-    { accountType: "ASSET", accountName: "Bank", debitCents: 250000, creditCents: 0 },
-    { accountType: "LIABILITY", accountName: "Member Deposits", debitCents: 0, creditCents: 250000 },
-  ],
-  [
-    { accountType: "ASSET", accountName: "Bank", debitCents: 150000, creditCents: 0 },
-    { accountType: "ASSET", accountName: "Cash on Hand", debitCents: 0, creditCents: 150000 },
-  ],
-  [
-    { accountType: "ASSET", accountName: "GCash", debitCents: 25000, creditCents: 0 },
-    { accountType: "INCOME", accountName: "Contribution Income", debitCents: 0, creditCents: 25000 },
-  ],
-  [
-    { accountType: "ASSET", accountName: "Loans Receivable", debitCents: 200000, creditCents: 0 },
-    { accountType: "ASSET", accountName: "Bank", debitCents: 0, creditCents: 200000 },
-  ],
-  [
-    { accountType: "ASSET", accountName: "Bank", debitCents: 50000, creditCents: 0 },
-    { accountType: "ASSET", accountName: "Loans Receivable", debitCents: 0, creditCents: 50000 },
-  ],
-  [
-    { accountType: "ASSET", accountName: "Bank", debitCents: 10000, creditCents: 0 },
-    { accountType: "INCOME", accountName: "Interest Income", debitCents: 0, creditCents: 10000 },
-  ],
-  [
-    { accountType: "EXPENSE", accountName: "Administrative Expense", debitCents: 15000, creditCents: 0 },
-    { accountType: "ASSET", accountName: "Cash on Hand", debitCents: 0, creditCents: 15000 },
-  ],
-];
-
-export function createPlaceholderJournalEntries(groupSlug: string, cycleId: string | number): JournalEntry[] {
-  return placeholderLines.map((lines) => ({ groupSlug, cycleId, lines }));
+function parseCents(value: unknown): number | null {
+  if (typeof value === "number") {
+    const cents = Math.round(value * 100);
+    return Number.isFinite(value) && Number.isSafeInteger(cents) ? cents : null;
+  }
+  if (typeof value !== "string") return null;
+  const match = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());
+  if (!match) return null;
+  const cents = Number(match[2]) * 100 + Number((match[3] ?? "").padEnd(2, "0"));
+  if (!Number.isSafeInteger(cents)) return null;
+  return match[1] ? -cents : cents;
 }
 
-export function buildAccountSummary(
-  entries: JournalEntry[],
+function isAccountType(value: unknown): value is AccountType {
+  return accountTypes.some(({ key }) => key === value);
+}
+
+export async function fetchChartOfAccounts(
+  accessToken: string,
   groupSlug: string,
   cycleId: string | number,
-): AccountSummary[] {
-  const balances = new Map<string, number>();
-
-  for (const account of placeholderAccounts) {
-    balances.set(`${account.type}:${account.name}`, 0);
-  }
-
-  for (const entry of entries) {
-    if (entry.groupSlug !== groupSlug || String(entry.cycleId) !== String(cycleId)) continue;
-    for (const line of entry.lines) {
-      const accountType = accountTypes.find(({ key }) => key === line.accountType);
-      const multiplier = accountType?.normalSide === "debit" ? 1 : -1;
-      const key = `${line.accountType}:${line.accountName}`;
-      balances.set(key, (balances.get(key) ?? 0) + (line.debitCents - line.creditCents) * multiplier);
-    }
-  }
-
-  return accountTypes.map(({ key, label }) => {
-    const accounts = placeholderAccounts
-      .filter((account) => account.type === key)
-      .map(({ name }) => ({ name, balanceCents: balances.get(`${key}:${name}`) ?? 0 }));
-    return {
-      type: key,
-      label,
-      totalCents: accounts.reduce((total, account) => total + account.balanceCents, 0),
-      accounts,
-    };
+  signal?: AbortSignal,
+): Promise<AccountSummary[]> {
+  if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
+  const base = (process.env.NEXT_PUBLIC_API_URL ||
+    "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
+  const response = await fetch(`${base}/accounting/accounts`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${accessToken}`, "x-group-slug": groupSlug },
+    cache: "no-store",
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
   });
+  const body = await response.json();
+  if (!response.ok || body?.success !== true || !Array.isArray(body.accounts)) {
+    throw new Error("Unable to load the chart of accounts. Please try again.");
+  }
+  if ((typeof body.current_cycle_id !== "string" && typeof body.current_cycle_id !== "number") || String(body.current_cycle_id) !== String(cycleId)) {
+    throw new Error("The accounting data does not match the active cycle. Please reload the page.");
+  }
+
+  const summaries = new Map<AccountType, AccountSummary>();
+  for (const rawAccount of body.accounts as unknown[]) {
+    if (!rawAccount || typeof rawAccount !== "object") throw new Error("Unable to read chart of accounts.");
+    const account = rawAccount as Record<string, unknown>;
+    if (!isAccountType(account.type) || summaries.has(account.type) || !Array.isArray(account.sub_accounts) || parseCents(account.total_balance) === null) {
+      throw new Error("Unable to read chart of accounts.");
+    }
+    const accountType = accountTypes.find(({ key }) => key === account.type)!;
+    const accounts = account.sub_accounts.map((rawSubAccount: unknown) => {
+      if (!rawSubAccount || typeof rawSubAccount !== "object") throw new Error("Unable to read chart of accounts.");
+      const subAccount = rawSubAccount as Record<string, unknown>;
+      const balanceCents = parseCents(subAccount.current_balance);
+      if ((typeof subAccount.id !== "string" && typeof subAccount.id !== "number") || String(subAccount.id).trim() === "" ||
+        typeof subAccount.code !== "string" || !subAccount.code.trim() ||
+        typeof subAccount.name !== "string" || !subAccount.name.trim() || balanceCents === null) {
+        throw new Error("Unable to read chart of accounts.");
+      }
+      return { id: subAccount.id, code: subAccount.code.trim(), name: subAccount.name.trim(), balanceCents };
+    });
+    summaries.set(account.type, {
+      type: account.type,
+      label: accountType.label,
+      totalCents: accounts.reduce((total, subAccount) => total + subAccount.balanceCents, 0),
+      accounts,
+    });
+  }
+
+  return accountTypes.map(({ key, label }) => summaries.get(key) ?? { type: key, label, totalCents: 0, accounts: [] });
 }
