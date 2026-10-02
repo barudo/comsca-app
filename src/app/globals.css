@@ -668,6 +668,33 @@ h1 > span {
   border-collapse: collapse;
   text-align: left;
 }
+.trial-balance-table {
+  min-width: 1040px;
+}
+.trial-balance-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.trial-balance-summary > div {
+  padding: 16px 20px;
+}
+.trial-balance-summary > div + div {
+  border-left: 1px solid var(--line);
+}
+.trial-balance-summary h2 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+.trial-balance-summary p {
+  margin: 8px 0 0;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
 .member-ledger caption {
   padding: 16px 20px;
   color: var(--muted);
@@ -765,6 +792,10 @@ h1 > span {
 .chart-subaccounts dd {
   text-align: right;
   white-space: nowrap;
+@media (max-width: 600px) {
+  .trial-balance-summary > div { padding: 14px 10px; }
+  .trial-balance-summary p { font-size: 16px; }
+}
   font-variant-numeric: tabular-nums;
 }
 .chart-subaccounts {
