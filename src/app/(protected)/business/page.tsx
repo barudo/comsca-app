@@ -10,6 +10,7 @@ import { PaymentAccounts } from "@/components/payment-accounts";
 import { fetchCycleAccounts, type LedgerAccount } from "@/lib/accounts";
 import { disburseLoan } from "@/lib/disbursements";
 import { postPayments, type PaymentEntry } from "@/lib/payments";
+import { amountToCents } from "@/lib/money";
 import { chargePenalty } from "@/lib/penalties";
 import { canViewBusiness } from "@/lib/auth";
 import { fetchCycleMembers, type CycleMember } from "@/lib/members";
@@ -69,8 +70,12 @@ function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selec
   const totalCents = items.reduce((total, item) => total + item.amountCents, 0);
   const queuedLoanCents = items.reduce((total, item) => total + (item.type === "Pay Loan" ? item.amountCents : 0), 0);
   const queuedPenaltyCents = items.reduce((total, item) => total + (item.type === "Pay Penalty" ? item.amountCents : 0), 0);
-  const remainingLoanAmount = Math.max(0, (Number(memberBalances.remainingLoan) * 100 - queuedLoanCents) / 100);
-  const remainingPenaltyAmount = Math.max(0, (Number(memberBalances.unpaidPenalties) * 100 - queuedPenaltyCents) / 100);
+  const loanBalanceCents = amountToCents(memberBalances.remainingLoan);
+  const penaltyBalanceCents = amountToCents(memberBalances.unpaidPenalties);
+  const remainingLoanCents = Math.max(0, loanBalanceCents - queuedLoanCents);
+  const remainingPenaltyCents = Math.max(0, penaltyBalanceCents - queuedPenaltyCents);
+  const remainingLoanAmount = remainingLoanCents / 100;
+  const remainingPenaltyAmount = remainingPenaltyCents / 100;
 
   const debitAccount = accounts?.find((account) => String(account.id) === (isPenalty ? penaltyReceivableAccountId : isContribution ? contributionFundsAccountId : isDisbursement ? disbursementLoanAccountId : isPenaltyPayment ? penaltyFundsAccountId : isLoanPayment ? loanFundsAccountId : fundsAccountId) && account.type === "ASSET");
   const creditAccount = accounts?.find((account) => String(account.id) === (isPenalty ? penaltyIncomeAccountId : isContribution ? contributionAccountId : isDisbursement ? disbursementFundsAccountId : isPenaltyPayment ? penaltyPaymentReceivableAccountId : isLoanPayment ? loanAccountId : capitalAccountId) && account.type === (isPenalty ? "INCOME" : isSharePurchase ? "EQUITY" : "ASSET"));
@@ -184,16 +189,16 @@ function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selec
       return;
     }
     if (isCheckout) {
-      const amountCents = Math.round(value * 100);
+      const amountCents = amountToCents(value);
       if (!Number.isSafeInteger(amountCents) || amountCents < 0 || (isContribution && amountCents === 0) || !Number.isSafeInteger(totalCents + amountCents)) {
         setNotice("Enter a valid amount within the supported range.");
         return;
       }
-      if (isLoanPayment && amountCents + queuedLoanCents > Number(memberBalances.remainingLoan) * 100) {
+      if (isLoanPayment && amountCents + queuedLoanCents > loanBalanceCents) {
         setNotice("Loan payments cannot exceed the remaining balance.");
         return;
       }
-      if (isPenaltyPayment && amountCents + queuedPenaltyCents > Number(memberBalances.unpaidPenalties) * 100) {
+      if (isPenaltyPayment && amountCents + queuedPenaltyCents > penaltyBalanceCents) {
         setNotice("Penalty payments cannot exceed the unpaid penalties.");
         return;
       }
