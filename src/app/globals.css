@@ -695,6 +695,27 @@ h1 > span {
   font-size: 20px;
   font-variant-numeric: tabular-nums;
 }
+.balance-sheet-table {
+  min-width: 480px;
+}
+.balance-sheet-section-heading th {
+  background: var(--pale);
+}
+.balance-sheet-total th,
+.balance-sheet-total td,
+.balance-sheet-table tfoot th,
+.balance-sheet-table tfoot td {
+  font-weight: 700;
+}
+.balance-sheet-table tfoot th,
+.balance-sheet-table tfoot td {
+  border-top: 2px solid var(--line);
+}
+.balance-sheet-check {
+  margin-top: 16px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 .member-ledger caption {
   padding: 16px 20px;
   color: var(--muted);
