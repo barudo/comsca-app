@@ -4,18 +4,24 @@ import { fetchIncomeStatement } from "../src/lib/income-statement.ts";
 
 const response = {
   success: true,
-  current_cycle_id: "20",
+  current_cycle_id: "1",
   income: {
-    accounts: [{ id: "401", code: "4000", name: "Interest income", balance: "37.40" }],
-    total: "37.40",
+    accounts: [
+      { id: "7", code: "4000", name: "Interest Income", amount: "1816.36" },
+      { id: "8", code: "4100", name: "Penalty Income", amount: "0.00" },
+      { id: "9", code: "4200", name: "Other Income", amount: "0.00" },
+      { id: "10", code: "4300", name: "Donation Income", amount: "0.00" },
+      { id: "11", code: "4400", name: "Contribution Income", amount: "300.00" },
+    ],
+    total: "2116.36",
   },
   expenses: {
-    accounts: [{ id: "501", code: "5000", name: "Operating expenses", balance: "10.00" }],
-    total: "10.00",
+    accounts: [{ id: "12", code: "5000", name: "Operating Expenses", amount: "0.00" }],
+    total: "0.00",
   },
-  total_income: "37.40",
-  total_expenses: "10.00",
-  net_income: "27.40",
+  total_income: "2116.36",
+  total_expenses: "0.00",
+  net_income: "2116.36",
 };
 
 test("income statement uses an authenticated community-scoped uncached request", async (t) => {
@@ -28,25 +34,27 @@ test("income statement uses an authenticated community-scoped uncached request",
     return Response.json(response);
   });
 
-  const statement = await fetchIncomeStatement("access", "cebu", 20);
-  assert.equal(statement.income.accounts[0].balanceCents, 3740);
-  assert.equal(statement.income.totalCents, 3740);
-  assert.equal(statement.expenses.accounts[0].code, "5000");
-  assert.equal(statement.totalExpensesCents, 1000);
-  assert.equal(statement.netIncomeCents, 2740);
+  const statement = await fetchIncomeStatement("access", "cebu", 1);
+  assert.equal(statement.income.accounts[0].balanceCents, 181636);
+  assert.equal(statement.income.accounts[4].code, "4400");
+  assert.equal(statement.income.accounts[4].balanceCents, 30000);
+  assert.equal(statement.income.totalCents, 211636);
+  assert.equal(statement.expenses.accounts[0].balanceCents, 0);
+  assert.equal(statement.totalExpensesCents, 0);
+  assert.equal(statement.netIncomeCents, 211636);
 });
 
 test("income statement rejects wrong-cycle and malformed data", async (t) => {
   const fetch = t.mock.method(globalThis, "fetch");
-  fetch.mock.mockImplementation(async () => Response.json({ ...response, current_cycle_id: "21" }));
-  await assert.rejects(fetchIncomeStatement("access", "cebu", 20), /active cycle/);
+  fetch.mock.mockImplementation(async () => Response.json({ ...response, current_cycle_id: "2" }));
+  await assert.rejects(fetchIncomeStatement("access", "cebu", 1), /active cycle/);
   for (const body of [
     { ...response, success: false },
-    { ...response, income: { ...response.income, accounts: [{ ...response.income.accounts[0], balance: "invalid" }] } },
+    { ...response, income: { ...response.income, accounts: [{ ...response.income.accounts[0], amount: "invalid" }] } },
     { ...response, net_income: "invalid" },
   ]) {
     fetch.mock.mockImplementation(async () => Response.json(body));
-    await assert.rejects(fetchIncomeStatement("access", "cebu", 20), /income statement/);
+    await assert.rejects(fetchIncomeStatement("access", "cebu", 1), /income statement/);
   }
 });
 

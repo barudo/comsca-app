@@ -40,7 +40,7 @@ function readSection(value: unknown): IncomeStatementSection {
   const accounts = section.accounts.map((rawAccount: unknown) => {
     if (!rawAccount || typeof rawAccount !== "object") throw new Error("Unable to read the income statement.");
     const account = rawAccount as Record<string, unknown>;
-    const balanceCents = parseCents(account.balance);
+    const balanceCents = parseCents(account.amount);
     if ((typeof account.id !== "string" && typeof account.id !== "number") || String(account.id).trim() === "" ||
       typeof account.code !== "string" || !account.code.trim() ||
       typeof account.name !== "string" || !account.name.trim() || balanceCents === null) {
