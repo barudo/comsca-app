@@ -701,6 +701,13 @@ h1 > span {
 .balance-sheet-section-heading th {
   background: var(--pale);
 }
+.balance-sheet-detail {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
 .balance-sheet-total th,
 .balance-sheet-total td,
 .balance-sheet-table tfoot th,
