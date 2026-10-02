@@ -1,69 +1,107 @@
-type IncomeStatementEntry = { name: string; cents: number };
+"use client";
 
-const incomeEntries: IncomeStatementEntry[] = [
-  { name: "Interest income", cents: 3740 },
-];
-const expenseEntries: IncomeStatementEntry[] = [
-  { name: "Operating expenses", cents: 1000 },
-];
-const totalIncome = incomeEntries.reduce((total, entry) => total + entry.cents, 0);
-const totalExpenses = expenseEntries.reduce((total, entry) => total + entry.cents, 0);
-const netIncome = totalIncome - totalExpenses;
+import { useEffect, useState } from "react";
+import { useAuth } from "@/components/auth-provider";
+import { useCommunity } from "@/components/community-provider";
+import { useCycles } from "@/components/cycle-provider";
+import { fetchIncomeStatement, type IncomeStatement, type IncomeStatementSection } from "@/lib/income-statement";
+
 const pesos = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
 export default function IncomeStatementPage() {
+  const { activeCycle, loading, error, refreshCycles } = useCycles();
+  const { group, subdomain } = useCommunity();
+  const { session } = useAuth();
+  const groupSlug = subdomain ?? "";
+  const accessToken = session?.access_token;
+  const cycleId = activeCycle?.id;
+  const [result, setResult] = useState<{ requestKey: string; statement: IncomeStatement } | null>(null);
+  const [requestError, setRequestError] = useState<{ requestKey: string; message: string } | null>(null);
+  const [retry, setRetry] = useState(0);
+  const requestKey = accessToken && groupSlug && cycleId !== undefined ? `${accessToken}:${groupSlug}:${cycleId}:${retry}` : null;
+  const statement = result?.requestKey === requestKey ? result.statement : null;
+  const statementError = requestError?.requestKey === requestKey ? requestError.message : "";
+  const accountLoading = requestKey !== null && statement === null && statementError === "";
+  const cycleLabel = activeCycle?.details?.name || (cycleId !== undefined ? `Cycle ${cycleId}` : "");
+
+  useEffect(() => {
+    if (!accessToken || !groupSlug || cycleId === undefined || !requestKey) return;
+    const controller = new AbortController();
+    fetchIncomeStatement(accessToken, groupSlug, cycleId, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) {
+          setResult({ requestKey, statement: data });
+          setRequestError(null);
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) setRequestError({
+          requestKey,
+          message: cause instanceof Error ? cause.message : "Unable to load the income statement.",
+        });
+      });
+    return () => controller.abort();
+  }, [accessToken, groupSlug, cycleId, requestKey]);
+
   return (
     <main className="protected-content">
       <h1>Income Statement</h1>
-      <p>Income and expenses for the reporting period.</p>
-      <p className="chart-account-notice">Placeholder values for layout only. This is not live financial data.</p>
-      <section className="trial-balance-summary" aria-label="Income statement summary">
-        <div><h2>Total income</h2><p>{pesos.format(totalIncome / 100)}</p></div>
-        <div><h2>Total expenses</h2><p>{pesos.format(totalExpenses / 100)}</p></div>
-        <div><h2>Net income</h2><p>{pesos.format(netIncome / 100)}</p></div>
-      </section>
-      <div className="member-ledger-wrapper">
-        <table className="member-ledger balance-sheet-table">
-          <caption>Illustrative income statement</caption>
-          <tbody>
-            <IncomeStatementRows title="Income" entries={incomeEntries} totalLabel="Total income" total={totalIncome} />
-            <IncomeStatementRows title="Expenses" entries={expenseEntries} totalLabel="Total expenses" total={totalExpenses} />
-          </tbody>
-          <tfoot>
-            <tr>
-              <th scope="row">Net income</th>
-              <td className="member-ledger-amount">{pesos.format(netIncome / 100)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+      <p>Income and expenses for {group?.name || subdomain || "your community"}{cycleLabel ? ` · ${cycleLabel}` : ""}.</p>
+      {loading && <p className="members-feedback" role="status">Loading active cycle…</p>}
+      {error && <p className="members-feedback" role="alert">{error} <button className="text-button" type="button" onClick={() => void refreshCycles()}>Try again</button></p>}
+      {!loading && !error && !activeCycle && <p className="members-feedback" role="status">An active cycle is required to view the income statement.</p>}
+      {!groupSlug && <p className="members-feedback" role="status">Please sign in through your community’s URL to view the income statement.</p>}
+      {accountLoading && <p className="members-feedback" role="status">Loading income statement…</p>}
+      {statementError && <p className="members-feedback" role="alert">{statementError} <button className="text-button" type="button" onClick={() => setRetry((value) => value + 1)}>Try again</button></p>}
+      {statement && (
+        <>
+          <section className="trial-balance-summary" aria-label="Income statement summary">
+            <div><h2>Total income</h2><p>{pesos.format(statement.totalIncomeCents / 100)}</p></div>
+            <div><h2>Total expenses</h2><p>{pesos.format(statement.totalExpensesCents / 100)}</p></div>
+            <div><h2>Net income</h2><p>{pesos.format(statement.netIncomeCents / 100)}</p></div>
+          </section>
+          <div className="member-ledger-wrapper" aria-busy={accountLoading}>
+            <table className="member-ledger balance-sheet-table">
+              <caption>Income statement for {group?.name || subdomain}{cycleLabel ? ` · ${cycleLabel}` : ""}</caption>
+              <tbody>
+                <IncomeStatementRows title="Income" section={statement.income} totalLabel="Total income" />
+                <IncomeStatementRows title="Expenses" section={statement.expenses} totalLabel="Total expenses" />
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row">Net income</th>
+                  <td className="member-ledger-amount">{pesos.format(statement.netIncomeCents / 100)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </>
+      )}
     </main>
   );
 }
 
 function IncomeStatementRows({
   title,
-  entries,
+  section,
   totalLabel,
-  total,
 }: {
   title: string;
-  entries: IncomeStatementEntry[];
+  section: IncomeStatementSection;
   totalLabel: string;
-  total: number;
 }) {
   return (
     <>
       <tr className="balance-sheet-section-heading"><th colSpan={2}>{title}</th></tr>
-      {entries.map((entry) => (
-        <tr key={entry.name}>
-          <th scope="row">{entry.name}</th>
-          <td className="member-ledger-amount">{pesos.format(entry.cents / 100)}</td>
+      {section.accounts.map((account) => (
+        <tr key={account.id}>
+          <th scope="row">{account.name}<small className="balance-sheet-detail">{account.code}</small></th>
+          <td className="member-ledger-amount">{pesos.format(account.balanceCents / 100)}</td>
         </tr>
       ))}
       <tr className="balance-sheet-total">
         <th scope="row">{totalLabel}</th>
-        <td className="member-ledger-amount">{pesos.format(total / 100)}</td>
+        <td className="member-ledger-amount">{pesos.format(section.totalCents / 100)}</td>
       </tr>
     </>
   );
