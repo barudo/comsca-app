@@ -142,6 +142,7 @@ export function ProtectedNavigation() {
               <summary className="protected-user">{user.name}<span aria-hidden="true">▾</span></summary>
               <nav className="protected-account-dropdown" aria-label="Account">
                 <Link href="/my-account" aria-current={pathname === "/my-account" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>My Account</Link>
+                <Link href="/chart-of-accounts" aria-current={pathname === "/chart-of-accounts" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Chart of Accounts</Link>
                 <Link href="/profile" onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Profile</Link>
                 <button type="button" onClick={() => setSession(null)}>Logout</button>
               </nav>

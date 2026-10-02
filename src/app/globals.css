@@ -709,6 +709,59 @@ h1 > span {
   border-top: 2px solid var(--line);
   font-weight: 700;
 }
+.chart-account-notice {
+  margin: 24px 0 0;
+  padding: 12px 16px;
+  border-left: 3px solid #c78220;
+  background: #fff8eb;
+  color: #70501d;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.chart-account-list {
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.chart-account-group {
+  border-bottom: 1px solid var(--line);
+}
+.chart-account-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 12px;
+  cursor: pointer;
+  font-weight: 650;
+}
+.chart-account-total,
+.chart-subaccounts td {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.chart-subaccounts {
+  width: calc(100% - 44px);
+  margin: 0 12px 16px 32px;
+  border-collapse: collapse;
+  text-align: left;
+}
+.chart-subaccounts th,
+.chart-subaccounts td {
+  padding: 12px 10px;
+  border-top: 1px solid var(--line);
+}
+.chart-subaccounts thead th {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.chart-subaccounts tbody th {
+  font-weight: 450;
+}
+.chart-subaccounts td {
+  font-size: 14px;
+}
 .member-actions { display: flex; align-items: center; gap: 8px; }
 .members-bulk-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
 .members-bulk-actions .submit-button { width: auto; }
