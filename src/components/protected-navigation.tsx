@@ -145,6 +145,7 @@ export function ProtectedNavigation() {
                 <Link href="/chart-of-accounts" aria-current={pathname === "/chart-of-accounts" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Chart of Accounts</Link>
                 <Link href="/trial-balance" aria-current={pathname === "/trial-balance" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Trial Balance</Link>
                 <Link href="/balance-sheet" aria-current={pathname === "/balance-sheet" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Balance Sheet</Link>
+                <Link href="/income-statement" aria-current={pathname === "/income-statement" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Income Statement</Link>
                 <Link href="/profile" onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Profile</Link>
                 <button type="button" onClick={() => setSession(null)}>Logout</button>
               </nav>
