@@ -28,25 +28,20 @@ export default function ChartOfAccountsPage() {
         <>
           <p className="chart-account-notice">Illustrative journal-entry balances for the current group and active cycle. These are placeholder values, not live financial data.</p>
           <section className="chart-account-list" aria-label="Chart of Accounts Summary">
-            {summary.map((accountType, index) => (
-              <details className="chart-account-group" key={accountType.type} open={index === 0}>
+            {summary.map((accountType) => (
+              <details className="chart-account-group" key={accountType.type}>
                 <summary className="chart-account-summary">
-                  <span>{accountType.label}</span>
+                  <span className="chart-account-heading"><span className="chart-account-toggle" aria-hidden="true" />{accountType.label}</span>
                   <span className="chart-account-total">{pesos.format(accountType.totalCents / 100)}</span>
                 </summary>
-                <table className="chart-subaccounts">
-                  <thead>
-                    <tr><th scope="col">Sub-account</th><th scope="col">Current balance</th></tr>
-                  </thead>
-                  <tbody>
-                    {accountType.accounts.map((account) => (
-                      <tr key={account.name}>
-                        <th scope="row">{account.name}</th>
-                        <td>{pesos.format(account.balanceCents / 100)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <dl className="chart-subaccounts">
+                  {accountType.accounts.map((account) => (
+                    <div key={account.name}>
+                      <dt>{account.name}</dt>
+                      <dd>{pesos.format(account.balanceCents / 100)}</dd>
+                    </div>
+                  ))}
+                </dl>
               </details>
             ))}
           </section>

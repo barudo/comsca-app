@@ -733,9 +733,36 @@ h1 > span {
   padding: 18px 12px;
   cursor: pointer;
   font-weight: 650;
+  list-style: none;
+}
+.chart-account-summary::-webkit-details-marker {
+  display: none;
+}
+.chart-account-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.chart-account-toggle {
+  display: inline-grid;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--blue);
+  font-size: 17px;
+  line-height: 1;
+}
+.chart-account-toggle::before {
+  content: "+";
+}
+.chart-account-group[open] .chart-account-toggle::before {
+  content: "-";
 }
 .chart-account-total,
-.chart-subaccounts td {
+.chart-subaccounts dd {
   text-align: right;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -743,23 +770,20 @@ h1 > span {
 .chart-subaccounts {
   width: calc(100% - 44px);
   margin: 0 12px 16px 32px;
-  border-collapse: collapse;
-  text-align: left;
 }
-.chart-subaccounts th,
-.chart-subaccounts td {
+.chart-subaccounts > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
   padding: 12px 10px;
   border-top: 1px solid var(--line);
 }
-.chart-subaccounts thead th {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-.chart-subaccounts tbody th {
+.chart-subaccounts dt {
   font-weight: 450;
 }
-.chart-subaccounts td {
+.chart-subaccounts dd {
+  margin: 0;
   font-size: 14px;
 }
 .member-actions { display: flex; align-items: center; gap: 8px; }
