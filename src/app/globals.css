@@ -1064,6 +1064,14 @@ h1 > span {
   font-size: 36px;
   letter-spacing: -1px;
 }
+.transaction-account-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.transaction-account-row .field {
+  min-width: 0;
+}
 .donation-form,
 .expense-form {
   max-width: 560px;

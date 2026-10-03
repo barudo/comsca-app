@@ -95,19 +95,21 @@ export default function ExpensePage() {
               <label htmlFor="expense-description">Description</label>
               <input id="expense-description" name="description" type="text" maxLength={255} required value={description} onChange={(event) => setDescription(event.target.value)} />
             </div>
-            <div className="field">
-              <label htmlFor="expense-debit">Debit account</label>
-              <select id="expense-debit" name="debit" required value={debit} onChange={(event) => setDebit(event.target.value)}>
-                <option value="">Select an expense account</option>
-                {expenseAccounts.map((account) => <option key={account.id} value={String(account.id)}>{account.code ? `${account.code} — ${account.name}` : account.name}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="expense-credit">Credit account</label>
-              <select id="expense-credit" name="credit" required value={credit} onChange={(event) => setCredit(event.target.value)}>
-                <option value="">Select a liability account</option>
-                {liabilityAccounts.map((account) => <option key={account.id} value={String(account.id)}>{account.code ? `${account.code} — ${account.name}` : account.name}</option>)}
-              </select>
+            <div className="transaction-account-row">
+              <div className="field">
+                <label htmlFor="expense-debit">Expense Account</label>
+                <select id="expense-debit" name="debit" required value={debit} onChange={(event) => setDebit(event.target.value)}>
+                  <option value="">Select an expense account</option>
+                  {expenseAccounts.map((account) => <option key={account.id} value={String(account.id)}>{account.code ? `${account.code} — ${account.name}` : account.name}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="expense-credit">Payable Account</label>
+                <select id="expense-credit" name="credit" required value={credit} onChange={(event) => setCredit(event.target.value)}>
+                  <option value="">Select a liability account</option>
+                  {liabilityAccounts.map((account) => <option key={account.id} value={String(account.id)}>{account.code ? `${account.code} — ${account.name}` : account.name}</option>)}
+                </select>
+              </div>
             </div>
             {feedback && <p className="members-feedback" role={feedback.kind === "error" ? "alert" : "status"}>{feedback.message}</p>}
             <button className="submit-button" type="submit">{submitting ? "Recording…" : "Submit"}</button>

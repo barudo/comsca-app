@@ -95,19 +95,21 @@ export default function DonationsPage() {
               <label htmlFor="donation-description">Description</label>
               <input id="donation-description" name="description" type="text" maxLength={255} required value={description} onChange={(event) => setDescription(event.target.value)} />
             </div>
-            <div className="field">
-              <label htmlFor="donation-debit">Debit account</label>
-              <select id="donation-debit" name="debit" required value={debit} onChange={(event) => setDebit(event.target.value)}>
-                <option value="">Select an asset account</option>
-                {assetAccounts.map((account) => <option key={account.id} value={String(account.id)}>{account.code ? `${account.code} — ${account.name}` : account.name}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="donation-credit">Credit account</label>
-              <select id="donation-credit" name="credit" required value={credit} onChange={(event) => setCredit(event.target.value)}>
-                <option value="">Select an income account</option>
-                {incomeAccounts.map((account) => <option key={account.id} value={String(account.id)}>{account.code ? `${account.code} — ${account.name}` : account.name}</option>)}
-              </select>
+            <div className="transaction-account-row">
+              <div className="field">
+                <label htmlFor="donation-debit">Receive Into</label>
+                <select id="donation-debit" name="debit" required value={debit} onChange={(event) => setDebit(event.target.value)}>
+                  <option value="">Select an asset account</option>
+                  {assetAccounts.map((account) => <option key={account.id} value={String(account.id)}>{account.code ? `${account.code} — ${account.name}` : account.name}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="donation-credit">Income Account</label>
+                <select id="donation-credit" name="credit" required value={credit} onChange={(event) => setCredit(event.target.value)}>
+                  <option value="">Select an income account</option>
+                  {incomeAccounts.map((account) => <option key={account.id} value={String(account.id)}>{account.code ? `${account.code} — ${account.name}` : account.name}</option>)}
+                </select>
+              </div>
             </div>
             {feedback && <p className="members-feedback" role={feedback.kind === "error" ? "alert" : "status"}>{feedback.message}</p>}
             <button className="submit-button" type="submit">{submitting ? "Recording…" : "Record Donation"}</button>
