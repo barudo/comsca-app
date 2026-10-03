@@ -141,11 +141,16 @@ export function ProtectedNavigation() {
             >
               <summary className="protected-user">{user.name}<span aria-hidden="true">▾</span></summary>
               <nav className="protected-account-dropdown" aria-label="Account">
+                <hr className="protected-account-separator" />
                 <Link href="/my-account" aria-current={pathname === "/my-account" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>My Account</Link>
+                <Link href="/apply-loan" aria-current={pathname === "/apply-loan" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Apply Loan</Link>
+                <hr className="protected-account-separator" />
+                <h2 className="protected-account-heading">Group Account Status</h2>
                 <Link href="/chart-of-accounts" aria-current={pathname === "/chart-of-accounts" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Chart of Accounts</Link>
                 <Link href="/trial-balance" aria-current={pathname === "/trial-balance" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Trial Balance</Link>
                 <Link href="/balance-sheet" aria-current={pathname === "/balance-sheet" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Balance Sheet</Link>
                 <Link href="/income-statement" aria-current={pathname === "/income-statement" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Income Statement</Link>
+                <hr className="protected-account-separator" />
                 <Link href="/profile" onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Profile</Link>
                 <button type="button" onClick={() => setSession(null)}>Logout</button>
               </nav>

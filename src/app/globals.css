@@ -1025,6 +1025,19 @@ h1 > span {
   background: #fff;
   box-shadow: 0 8px 24px rgb(0 0 0 / 10%);
 }
+.protected-account-separator {
+  margin: 6px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.protected-account-heading {
+  margin: 0;
+  padding: 8px 12px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 .protected-account-dropdown a,
 .protected-account-dropdown button {
   display: block;
