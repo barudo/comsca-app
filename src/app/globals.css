@@ -263,6 +263,7 @@ h1 > span {
 }
 .field input,
 .donation-form select,
+.expense-form select,
 .account-form textarea {
   width: 100%;
   border: 1px solid #dce4f0;
@@ -279,6 +280,7 @@ h1 > span {
 }
 .field input:focus,
 .donation-form select:focus,
+.expense-form select:focus,
 .account-form textarea:focus {
   border-color: var(--blue);
 }
@@ -1062,11 +1064,13 @@ h1 > span {
   font-size: 36px;
   letter-spacing: -1px;
 }
-.donation-form {
+.donation-form,
+.expense-form {
   max-width: 560px;
   margin-top: 28px;
 }
-.donation-form fieldset {
+.donation-form fieldset,
+.expense-form fieldset {
   min-width: 0;
   margin: 0;
   padding: 0;
