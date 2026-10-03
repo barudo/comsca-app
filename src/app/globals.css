@@ -262,6 +262,7 @@ h1 > span {
   margin-bottom: 9px;
 }
 .field input,
+.donation-form select,
 .account-form textarea {
   width: 100%;
   border: 1px solid #dce4f0;
@@ -277,6 +278,7 @@ h1 > span {
   color: #7082a3;
 }
 .field input:focus,
+.donation-form select:focus,
 .account-form textarea:focus {
   border-color: var(--blue);
 }
@@ -1059,6 +1061,16 @@ h1 > span {
   margin: 0 0 16px;
   font-size: 36px;
   letter-spacing: -1px;
+}
+.donation-form {
+  max-width: 560px;
+  margin-top: 28px;
+}
+.donation-form fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 .dashboard-metrics {
   display: grid;
