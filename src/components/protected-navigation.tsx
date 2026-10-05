@@ -25,7 +25,7 @@ const businessLinks = [
 export function ProtectedNavigation() {
   const { activeCycle } = useCycles();
   const pathname = usePathname();
-  const { subdomain } = useCommunity();
+  const { group } = useCommunity();
   const { user, setSession } = useAuth();
   const visibleAdministrationLinks = administrationLinks.filter(({ canView }) => canView(user));
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`) ||
@@ -124,7 +124,7 @@ export function ProtectedNavigation() {
           )}
         </nav>
         <div className="protected-account">
-          {subdomain && <span className="protected-community">{subdomain}</span>}
+          {group?.name && <span className="protected-community">{group.name}</span>}
           {user && (
             <details
               className="protected-account-menu"
