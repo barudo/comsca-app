@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
@@ -71,6 +72,13 @@ export default function Dashboard() {
           </article>
         ))}
       </section>
+      <nav className="dashboard-reports" aria-labelledby="dashboard-reports-heading">
+        <h2 id="dashboard-reports-heading">Group Account Status</h2>
+        <Link href="/chart-of-accounts">Chart of Accounts</Link>
+        <Link href="/trial-balance">Trial Balance</Link>
+        <Link href="/balance-sheet">Balance Sheet</Link>
+        <Link href="/income-statement">Income Statement</Link>
+      </nav>
     </main>
   );
 }

@@ -141,7 +141,6 @@ export function ProtectedNavigation() {
             >
               <summary className="protected-user">{user.name}<span aria-hidden="true">▾</span></summary>
               <nav className="protected-account-dropdown" aria-label="Account">
-                <hr className="protected-account-separator" />
                 <Link href="/my-account" aria-current={pathname === "/my-account" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>My Account</Link>
                 <Link href="/apply-loan" aria-current={pathname === "/apply-loan" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Apply Loan</Link>
                 <hr className="protected-account-separator" />
