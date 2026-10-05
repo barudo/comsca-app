@@ -63,6 +63,13 @@ export default function Dashboard() {
       {loading && <p className="members-feedback" role="status">Loading dashboard data…</p>}
       {!requestKey && <p className="members-feedback" role="status">Please sign in through your community’s URL to view dashboard data.</p>}
       {error && <p className="members-feedback" role="alert">{error} <button className="text-button" type="button" onClick={() => setReload((current) => current + 1)}>Try again</button></p>}
+      <nav className="dashboard-reports" aria-labelledby="dashboard-reports-heading">
+        <h2 id="dashboard-reports-heading">Group Account Status</h2>
+        <Link href="/chart-of-accounts">Chart of Accounts</Link>
+        <Link href="/trial-balance">Trial Balance</Link>
+        <Link href="/balance-sheet">Balance Sheet</Link>
+        <Link href="/income-statement">Income Statement</Link>
+      </nav>
       <section className="dashboard-metrics" aria-label="Community summary" aria-busy={loading}>
         {metrics.map((metric) => (
           <article className="dashboard-metric" key={metric.label}>
@@ -72,13 +79,6 @@ export default function Dashboard() {
           </article>
         ))}
       </section>
-      <nav className="dashboard-reports" aria-labelledby="dashboard-reports-heading">
-        <h2 id="dashboard-reports-heading">Group Account Status</h2>
-        <Link href="/chart-of-accounts">Chart of Accounts</Link>
-        <Link href="/trial-balance">Trial Balance</Link>
-        <Link href="/balance-sheet">Balance Sheet</Link>
-        <Link href="/income-statement">Income Statement</Link>
-      </nav>
     </main>
   );
 }
