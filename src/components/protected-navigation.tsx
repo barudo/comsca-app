@@ -12,6 +12,7 @@ import { canManageCycles, canViewBusiness, canViewMembers } from "@/lib/auth";
 const administrationLinks = [
   { href: "/cycles", label: "Cycle", canView: canManageCycles },
   { href: "/groups", label: "Members", canView: canViewMembers },
+  { href: "/transaction-management", label: "Transaction Management", canView: canViewBusiness },
 ];
 
 const businessLinks = [
