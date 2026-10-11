@@ -11,6 +11,15 @@ export type LoanApplication = {
 };
 
 export async function submitLoanApplication(accessToken: string, groupSlug: string, amountDesired: string): Promise<void> {
+  return postLoanApplication(accessToken, groupSlug, amountDesired);
+}
+
+export async function setMemberLoanDesired(accessToken: string, groupSlug: string, userId: string, amountDesired: string): Promise<void> {
+  if (!userId.trim()) throw new Error("Select a member.");
+  return postLoanApplication(accessToken, groupSlug, amountDesired, userId);
+}
+
+async function postLoanApplication(accessToken: string, groupSlug: string, amountDesired: string, userId?: string): Promise<void> {
   if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
   const amount = amountDesired.trim();
   if (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0 || !Number.isSafeInteger(Math.round(Number(amount) * 100))) {
@@ -21,10 +30,10 @@ export async function submitLoanApplication(accessToken: string, groupSlug: stri
   const uncertain = "Submission could not be confirmed. Refresh your loan application before trying again.";
   let response: Response;
   try {
-    response = await fetch(`${base}/me/loans/apply`, {
+    response = await fetch(`${base}${userId === undefined ? "/me/loans/apply" : "/loans/apply"}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}`, "x-group-slug": groupSlug, "Content-Type": "application/json" },
-      body: JSON.stringify({ amount_desired: Number(amount).toFixed(2) }),
+      body: JSON.stringify({ ...(userId === undefined ? {} : { user_id: userId }), amount_desired: Number(amount).toFixed(2) }),
       signal: AbortSignal.timeout(15000),
     });
   } catch {

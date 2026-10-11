@@ -8,6 +8,7 @@ import { useMembers } from "@/components/members-provider";
 import { BusinessCycleActions } from "@/components/business-cycle-actions";
 import { PaymentAccounts } from "@/components/payment-accounts";
 import { fetchCycleAccounts, type LedgerAccount } from "@/lib/accounts";
+import { setMemberLoanDesired } from "@/lib/loan-applications";
 import { disburseLoan } from "@/lib/disbursements";
 import { postPayments, type PaymentEntry } from "@/lib/payments";
 import { amountToCents } from "@/lib/money";
@@ -51,6 +52,8 @@ function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selec
   const [memberBalances, setMemberBalances] = useState(selection.member);
   const [paymentOption, setPaymentOption] = useState<PaymentOption>("Share purchase");
   const [amount, setAmount] = useState("");
+  const [editingLoanDesired, setEditingLoanDesired] = useState(false);
+  const [loanDesired, setLoanDesired] = useState("");
   const [penaltyAmount, setPenaltyAmount] = useState(activeCycle?.details?.absencePenalty ?? "");
   const currentAction = selection.action === "Shares and Payments" ? paymentOption : selection.action;
   const isDisbursement = currentAction === "Disburse Loan";
@@ -152,6 +155,27 @@ function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selec
       setCheckoutError(cause instanceof Error
         ? `${action} succeeded, but member balances could not be refreshed: ${cause.message}`
         : `${action} succeeded, but member balances could not be refreshed.`);
+    }
+  }
+
+  async function handleSetLoanDesired(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (checkoutInFlight.current || !accessToken || !subdomain || selection.member.id === undefined) return;
+    checkoutInFlight.current = true;
+    setCheckingOut(true);
+    setCheckoutError("");
+    setNotice("");
+    try {
+      await setMemberLoanDesired(accessToken, subdomain, String(selection.member.id), loanDesired);
+      setMemberBalances((current) => ({ ...current, loanApplied: Number(loanDesired).toFixed(2) }));
+      setEditingLoanDesired(false);
+      setNotice("Loan desired saved.");
+      await refreshMemberAfterSave("Setting loan desired");
+    } catch (cause) {
+      setCheckoutError(cause instanceof Error ? cause.message : "Unable to set loan desired.");
+    } finally {
+      checkoutInFlight.current = false;
+      setCheckingOut(false);
     }
   }
 
@@ -282,6 +306,7 @@ function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selec
       </div>
       <div className="business-selected-member"><span className="eyebrow">MEMBER</span><h3 id="business-member-name">{selection.member.name || "Unnamed member"}</h3></div>
       <p id="business-action-description">{isCheckout ? "Add items below, then checkout to save payments." : isDisbursement ? "Submit to record the loan disbursement." : "Preview only. Submissions are not saved."}</p>
+      <form id="set-loan-desired-form" onSubmit={handleSetLoanDesired} />
       <form className="cycle-draft-form" onSubmit={handleSubmit}>
         <fieldset className="business-payment-fields" disabled={checkingOut}>
         {selection.action === "Shares and Payments" && (
@@ -332,8 +357,19 @@ function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selec
         ) : (
           <>
             <dl className="business-loan-summary">
-              <dt>{isLoanPayment ? "Remaining balance" : "Applied loan"}</dt>
-              <dd>{isLoanPayment ? pesos(remainingLoanAmount) : (
+              <dt>{isLoanPayment ? "Remaining balance" : (
+                <button type="button" className="text-button" aria-expanded={editingLoanDesired} aria-controls="loan-desired-editor" onClick={() => {
+                  setLoanDesired(appliedLoanAmount.toFixed(2));
+                  setEditingLoanDesired((value) => !value);
+                }}>Applied Loan</button>
+              )}</dt>
+              <dd>{isLoanPayment ? pesos(remainingLoanAmount) : editingLoanDesired ? (
+                <div id="loan-desired-editor" className="field">
+                  <label htmlFor="member-loan-desired">Amount desired (₱)</label>
+                  <input id="member-loan-desired" form="set-loan-desired-form" name="amount_desired" type="number" min="0.01" step="0.01" required value={loanDesired} onChange={(event) => setLoanDesired(event.target.value)} />
+                  <button type="submit" form="set-loan-desired-form" className="submit-button" disabled={selection.member.id === undefined}>{checkingOut ? "Saving…" : "Set Loan Desired"}</button>
+                </div>
+              ) : (
                 <button
                   type="button"
                   className="text-button business-applied-loan"

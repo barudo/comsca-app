@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fetchLoanApplication, submitLoanApplication } from "../src/lib/loan-applications.ts";
+import { fetchLoanApplication, submitLoanApplication, setMemberLoanDesired } from "../src/lib/loan-applications.ts";
 
 const application = {
   id: "101", group_id: "1", user_id: "10", cycle_id: "20",
@@ -74,5 +74,25 @@ test("missing credentials do not send a request", async (t) => {
   const fetch = t.mock.method(globalThis, "fetch", () => { throw new Error("Unexpected request"); });
   await assert.rejects(fetchLoanApplication("", "cebu"), /sign in/);
   await assert.rejects(fetchLoanApplication("access", " "), /sign in/);
+  assert.equal(fetch.mock.callCount(), 0);
+});
+
+
+test("sets a selected member's desired loan using the administrative endpoint", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.ok(url.endsWith("/api/v1/loans/apply"));
+    assert.equal(options.method, "POST");
+    assert.equal(options.headers.Authorization, "Bearer access");
+    assert.equal(options.headers["x-group-slug"], "cebu");
+    assert.deepEqual(JSON.parse(options.body), { user_id: "10", amount_desired: "2000.00" });
+    return Response.json({ success: true });
+  });
+  await setMemberLoanDesired("access", "cebu", "10", "2000");
+});
+
+test("setting loan desired rejects missing members and invalid amounts before sending", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch", () => { throw new Error("Unexpected request"); });
+  await assert.rejects(setMemberLoanDesired("access", "cebu", " ", "2000"), /Select a member/);
+  await assert.rejects(setMemberLoanDesired("access", "cebu", "10", "-1"), /Enter an amount/);
   assert.equal(fetch.mock.callCount(), 0);
 });
