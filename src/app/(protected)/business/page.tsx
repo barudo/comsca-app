@@ -364,9 +364,11 @@ function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selec
                 }}>Applied Loan</button>
               )}</dt>
               <dd>{isLoanPayment ? pesos(remainingLoanAmount) : editingLoanDesired ? (
-                <div id="loan-desired-editor" className="field">
+                <div id="loan-desired-editor" className="business-loan-desired-editor">
+                  <div className="field">
                   <label htmlFor="member-loan-desired">Amount desired (₱)</label>
                   <input id="member-loan-desired" form="set-loan-desired-form" name="amount_desired" type="number" min="0.01" step="0.01" required value={loanDesired} onChange={(event) => setLoanDesired(event.target.value)} />
+                  </div>
                   <button type="submit" form="set-loan-desired-form" className="submit-button" disabled={selection.member.id === undefined}>{checkingOut ? "Saving…" : "Set Loan Desired"}</button>
                 </div>
               ) : (
