@@ -12,6 +12,7 @@ export type Member = {
 export type CycleMember = Member & {
   totalShares: string;
   remainingLoan: string;
+  loanApplied: string;
   unpaidPenalties: string;
   unpaidContributions: string;
 };
@@ -127,6 +128,7 @@ export async function fetchCycleMembers(accessToken: string, groupSlug: string, 
       ...parsed,
       totalShares: amount(fields.total_shares),
       remainingLoan: amount(fields.remaining_loan),
+      loanApplied: amount(fields.loan_applied),
       unpaidPenalties: amount(fields.unpaid_penalties),
       unpaidContributions: amount(fields.unpaid_contributions),
     };

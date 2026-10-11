@@ -22,7 +22,6 @@ type CheckoutItem = { id: number; type: PaymentOption; amountCents: number; shar
 type BusinessAction = typeof actions[number];
 type Selection = { action: BusinessAction; member: CycleMember; trigger: HTMLButtonElement };
 const pricePerShare = 100;
-const previewAppliedLoan = 10000;
 const pesos = (amount: number) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(amount);
 
 function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selection; onClose: () => void; onMemberUpdated: (memberId: string | number) => Promise<CycleMember> }) {
@@ -70,6 +69,7 @@ function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selec
   const totalCents = items.reduce((total, item) => total + item.amountCents, 0);
   const queuedLoanCents = items.reduce((total, item) => total + (item.type === "Pay Loan" ? item.amountCents : 0), 0);
   const queuedPenaltyCents = items.reduce((total, item) => total + (item.type === "Pay Penalty" ? item.amountCents : 0), 0);
+  const appliedLoanAmount = Number(memberBalances.loanApplied);
   const loanBalanceCents = amountToCents(memberBalances.remainingLoan);
   const penaltyBalanceCents = amountToCents(memberBalances.unpaidPenalties);
   const remainingLoanCents = Math.max(0, loanBalanceCents - queuedLoanCents);
@@ -281,7 +281,7 @@ function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selec
         <button className="cycle-close" type="button" aria-label="Close member action" disabled={checkingOut} onClick={onClose}>×</button>
       </div>
       <div className="business-selected-member"><span className="eyebrow">MEMBER</span><h3 id="business-member-name">{selection.member.name || "Unnamed member"}</h3></div>
-      <p id="business-action-description">{isCheckout ? "Add items below, then checkout to save payments." : isDisbursement ? "Submit to record the loan disbursement." : "Preview only. Submissions are not saved."} {selection.action === "Disburse Loan" && "Loan amounts below are sample data. "}</p>
+      <p id="business-action-description">{isCheckout ? "Add items below, then checkout to save payments." : isDisbursement ? "Submit to record the loan disbursement." : "Preview only. Submissions are not saved."}</p>
       <form className="cycle-draft-form" onSubmit={handleSubmit}>
         <fieldset className="business-payment-fields" disabled={checkingOut}>
         {selection.action === "Shares and Payments" && (
@@ -332,12 +332,26 @@ function ActionPanel({ selection, onClose, onMemberUpdated }: { selection: Selec
         ) : (
           <>
             <dl className="business-loan-summary">
-              <dt>{isLoanPayment ? "Remaining balance" : "Applied loan"}{!isLoanPayment && <span className="cycle-optional">(sample)</span>}</dt>
-              <dd>{pesos(isLoanPayment ? remainingLoanAmount : previewAppliedLoan)}</dd>
+              <dt>{isLoanPayment ? "Remaining balance" : "Applied loan"}</dt>
+              <dd>{isLoanPayment ? pesos(remainingLoanAmount) : (
+                <button
+                  type="button"
+                  className="text-button business-applied-loan"
+                  disabled={checkingOut}
+                  aria-label={`Use applied loan amount of ${pesos(appliedLoanAmount)} as Loan to Disburse`}
+                  onClick={() => {
+                    setAmount(appliedLoanAmount.toFixed(2));
+                    setNotice("");
+                    firstInput.current?.focus();
+                  }}
+                >
+                  {pesos(appliedLoanAmount)}
+                </button>
+              )}</dd>
             </dl>
             <div className="field">
               <label htmlFor="business-loan-amount">{isLoanPayment ? "Payment amount (₱)" : "Loan to Disburse (₱)"}</label>
-              <input ref={firstInput} id="business-loan-amount" name="amount" type="number" min="0.01" max={isLoanPayment ? remainingLoanAmount : previewAppliedLoan} step="0.01" placeholder="0.00" required value={amount} onChange={(event) => { setAmount(event.target.value); setNotice(""); }} />
+              <input ref={firstInput} id="business-loan-amount" name="amount" type="number" min="0.01" max={isLoanPayment ? remainingLoanAmount : appliedLoanAmount} step="0.01" placeholder="0.00" required value={amount} onChange={(event) => { setAmount(event.target.value); setNotice(""); }} />
             </div>
           </>
         )}

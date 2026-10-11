@@ -194,14 +194,14 @@ test("business cycle members load member balances from the authenticated active-
       current_cycle_id: "5",
       members: [{
         id: "11", first_name: "Fely", family_name: "Chaves", address: "Main Street", email: null, phone: null,
-        total_shares: "6100.00", remaining_loan: "1200.50", unpaid_penalties: "30.00", unpaid_contributions: "20.00",
+        total_shares: "6100.00", remaining_loan: "1200.50", loan_applied: "2000.00", unpaid_penalties: "30.00", unpaid_contributions: "20.00",
       }],
     });
   });
   const { fetchCycleMembers } = await import("../src/lib/members.ts");
   assert.deepEqual(await fetchCycleMembers("access", "cebu", 5), [{
     id: "11", first_name: "Fely", family_name: "Chaves", address: "Main Street", name: "Fely Chaves", email: null, phone: null,
-    totalShares: "6100.00", remainingLoan: "1200.50", unpaidPenalties: "30.00", unpaidContributions: "20.00",
+    totalShares: "6100.00", remainingLoan: "1200.50", loanApplied: "2000.00", unpaidPenalties: "30.00", unpaidContributions: "20.00",
   }]);
 });
 
