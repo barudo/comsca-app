@@ -1179,6 +1179,11 @@ h1 > span {
   background: var(--line);
   border-color: var(--blue);
 }
+.dashboard-reports a[aria-current="page"] {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
 .dashboard-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -1,5 +1,7 @@
 "use client";
 
+import { ReportNavigation } from "@/components/report-navigation";
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
@@ -56,6 +58,7 @@ export default function TrialBalancePage() {
     <main className="protected-content">
       <h1>Trial Balance</h1>
       <p>Debit and credit balances for {group?.name || subdomain || "your community"}{cycleLabel ? ` · ${cycleLabel}` : ""}.</p>
+      <ReportNavigation />
       {loading && <p className="members-feedback" role="status">Loading active cycle…</p>}
       {error && <p className="members-feedback" role="alert">{error} <button className="text-button" type="button" onClick={() => void refreshCycles()}>Try again</button></p>}
       {!loading && !error && !activeCycle && <p className="members-feedback" role="status">An active cycle is required to view the trial balance.</p>}
