@@ -38,3 +38,24 @@ test("expense surfaces server errors and does not retry uncertain submissions", 
   await assert.rejects(postExpense("access", "cebu", expense), /Check transaction records/);
   assert.equal(fetch.mock.callCount(), 2);
 });
+
+test("expenses GET uses community authentication and normalizes records", async (t) => {
+  const { fetchExpenses } = await import("../src/lib/expenses.ts");
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.ok(url.endsWith("/api/v1/transactions/expenses"));
+    assert.equal(options.method, "GET");
+    assert.equal(options.headers.Authorization, "Bearer access");
+    assert.equal(options.headers["x-group-slug"], "cebu");
+    assert.equal(options.cache, "no-store");
+    return Response.json({ success: true, data: [{ id: 1, description: "Supplies", amount: "25.50" }] });
+  });
+  assert.deepEqual(await fetchExpenses("access", "cebu"), [{ id: "1", description: "Supplies", amount: "25.50" }]);
+});
+
+test("expenses GET rejects malformed amounts and surfaces API errors", async (t) => {
+  const { fetchExpenses } = await import("../src/lib/expenses.ts");
+  const mock = t.mock.method(globalThis, "fetch", async () => Response.json({ success: true, data: [{ id: 1, amount: "invalid" }] }));
+  await assert.rejects(fetchExpenses("access", "cebu"), /Unable to load expenses/);
+  mock.mock.mockImplementation(async () => Response.json({ success: false, error: "Access denied" }, { status: 403 }));
+  await assert.rejects(fetchExpenses("access", "cebu"), /Access denied/);
+});
