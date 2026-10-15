@@ -145,14 +145,14 @@ export default function DisbursePage() {
           <fieldset disabled={submitting || !accounts || cycleLoading || Boolean(cycleError)} aria-busy={submitting}>
             <div className="transaction-account-row">
               <div className="field">
-                <label htmlFor="disburse-debit">Debit — Liability account</label>
+                <label htmlFor="disburse-debit">Pay From Liability</label>
                 <select id="disburse-debit" name="debit" required value={debit} onChange={(event) => setDebit(event.target.value)}>
                   <option value="">Select a liability account</option>
                   {liabilityAccounts.map((account) => <option key={account.id} value={String(account.id)}>{account.name}</option>)}
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="disburse-credit">Credit — Asset account</label>
+                <label htmlFor="disburse-credit">Payment Source</label>
                 <select id="disburse-credit" name="credit" required value={credit} onChange={(event) => setCredit(event.target.value)}>
                   <option value="">Select an asset account</option>
                   {assetAccounts.map((account) => <option key={account.id} value={String(account.id)}>{account.name}</option>)}
