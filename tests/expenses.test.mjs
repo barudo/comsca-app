@@ -59,3 +59,42 @@ test("expenses GET rejects malformed amounts and surfaces API errors", async (t)
   mock.mock.mockImplementation(async () => Response.json({ success: false, error: "Access denied" }, { status: 403 }));
   await assert.rejects(fetchExpenses("access", "cebu"), /Access denied/);
 });
+
+test("expense payment posts selected expenses and account IDs", async (t) => {
+  const { payExpenses } = await import("../src/lib/expenses.ts");
+  const payment = { expenses: [{ id: "10", amount: "100" }, { id: "11", amount: "200" }], debit: "201", credit: "100" };
+  const mock = t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.ok(url.endsWith("/api/v1/transactions/expenses/pay"));
+    assert.equal(options.method, "POST");
+    assert.equal(options.headers.Authorization, "Bearer access");
+    assert.equal(options.headers["x-group-slug"], "cebu");
+    assert.equal(options.headers["Content-Type"], "application/json");
+    assert.deepEqual(JSON.parse(options.body), payment);
+    return Response.json({ success: true });
+  });
+  await payExpenses("access", "cebu", payment);
+  assert.equal(mock.mock.callCount(), 1);
+});
+
+test("expense payment rejects empty, duplicate, and invalid selections before sending", async (t) => {
+  const { payExpenses } = await import("../src/lib/expenses.ts");
+  const mock = t.mock.method(globalThis, "fetch");
+  const payment = { expenses: [{ id: "10", amount: "100" }], debit: "201", credit: "100" };
+  await assert.rejects(payExpenses("", "cebu", payment), /sign in/);
+  for (const invalid of [
+    { ...payment, expenses: [] }, { ...payment, debit: "" }, { ...payment, credit: "" },
+    { ...payment, expenses: [...payment.expenses, ...payment.expenses] },
+    ...["0", "-1", "NaN", "1.001"].map((amount) => ({ ...payment, expenses: [{ id: "10", amount }] })),
+  ]) await assert.rejects(payExpenses("access", "cebu", invalid), /valid positive amounts/);
+  assert.equal(mock.mock.callCount(), 0);
+});
+
+test("expense payment surfaces server errors and does not retry uncertain payments", async (t) => {
+  const { payExpenses } = await import("../src/lib/expenses.ts");
+  const payment = { expenses: [{ id: "10", amount: "100" }], debit: "201", credit: "100" };
+  const mock = t.mock.method(globalThis, "fetch", async () => Response.json({ success: false, error: "Already paid" }, { status: 409 }));
+  await assert.rejects(payExpenses("access", "cebu", payment), /Already paid/);
+  mock.mock.mockImplementation(async () => { throw new Error("Network failure"); });
+  await assert.rejects(payExpenses("access", "cebu", payment), /Check transaction records/);
+  assert.equal(mock.mock.callCount(), 2);
+});

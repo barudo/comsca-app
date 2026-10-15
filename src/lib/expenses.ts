@@ -60,3 +60,36 @@ export async function fetchExpenses(accessToken: string, groupSlug: string, sign
     return { id: String(row.id), description: typeof row.description === "string" ? row.description.trim() : "", amount: String(row.amount) };
   });
 }
+
+export type ExpensePayment = {
+  expenses: { id: string; amount: string }[];
+  debit: string;
+  credit: string;
+};
+
+export async function payExpenses(accessToken: string, groupSlug: string, payment: ExpensePayment): Promise<void> {
+  if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
+  if (!payment.debit.trim() || !payment.credit.trim() || !payment.expenses.length ||
+    new Set(payment.expenses.map((expense) => expense.id)).size !== payment.expenses.length ||
+    payment.expenses.some(({ id, amount }) => !id.trim() || !/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0 || !Number.isSafeInteger(Math.round(Number(amount) * 100)))) {
+    throw new Error("Select expenses with valid positive amounts and debit and credit accounts.");
+  }
+  const base = (process.env.NEXT_PUBLIC_API_URL ||
+    "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
+  const uncertainMessage = "Payment status could not be confirmed. Check transaction records before trying again.";
+  let response: Response;
+  try {
+    response = await fetch(`${base}/transactions/expenses/pay`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "x-group-slug": groupSlug, "Content-Type": "application/json" },
+      body: JSON.stringify(payment),
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch {
+    throw new Error(uncertainMessage);
+  }
+  const body = await response.json().catch(() => null);
+  if (!response.ok || body?.success !== true) {
+    throw new Error(typeof body?.error === "string" ? body.error : uncertainMessage);
+  }
+}
