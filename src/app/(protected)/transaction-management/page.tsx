@@ -1,31 +1,62 @@
 "use client";
 
-import { Fragment, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
+import { fetchTransactionRegisters, type RegisterPage } from "@/lib/transaction-registers";
 import { canViewBusiness } from "@/lib/auth";
 
-const tabs = ["Payment Receipts", "Disbursements"] as const;
-const receipts = [
-  { id: "PR-0001", date: "Oct 9, 2026", member: "Sample Member A", entries: [
-    { id: "TX-0001", description: "Savings contribution", amount: 500 },
-    { id: "TX-0002", description: "Social fund contribution", amount: 50 },
-  ] },
-  { id: "PR-0002", date: "Oct 9, 2026", member: "Sample Member B", entries: [
-    { id: "TX-0003", description: "Loan principal payment", amount: 1000 },
-    { id: "TX-0004", description: "Loan interest payment", amount: 100 },
-  ] },
-  { id: "PR-0003", date: "Oct 8, 2026", member: "Sample Member C", entries: [
-    { id: "TX-0005", description: "Savings contribution", amount: 250 },
-  ] },
-];
+const tabs = [
+  { label: "Payment Receipts", document: "PR" },
+  { label: "Disbursement Vouchers", document: "DV" },
+  { label: "Journal Vouchers", document: "JV" },
+] as const;
+
+const columns = [
+  ["document_number", "Document No."], ["occurred_at", "Date"],
+  ["type", "Type"], ["description", "Description"], ["amount", "Amount"],
+  ["status", "Status"], ["expense_payment_status", "Payment Status"],
+] as const;
 const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
+const dateFormat = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Manila" });
+
+function displayValue(field: string, value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (field === "amount" && (typeof value === "string" || typeof value === "number") && Number.isFinite(Number(value))) return currency.format(Number(value));
+  if (field === "occurred_at" && typeof value === "string" && !Number.isNaN(Date.parse(value))) return dateFormat.format(new Date(value));
+  if (["type", "status", "expense_payment_status"].includes(field)) return String(value).toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return String(value);
+}
 
 export default function TransactionManagementPage() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { group, subdomain } = useCommunity();
   const [activeTab, setActiveTab] = useState(0);
-  const [expandedReceipts, setExpandedReceipts] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [retry, setRetry] = useState(0);
+  const [result, setResult] = useState<{ key: string; data: RegisterPage } | null>(null);
+  const [error, setError] = useState<{ key: string; message: string } | null>(null);
+  const accessToken = session?.access_token ?? "";
+  const groupSlug = subdomain ?? "";
+  const allowed = canViewBusiness(user);
+  const document = tabs[activeTab].document;
+  const requestKey = allowed && accessToken && groupSlug ? `${accessToken}:${groupSlug}:${document}:${page}:${retry}` : null;
+  const documents = result?.key === requestKey ? result.data.documents : null;
+  const currentError = error?.key === requestKey ? error.message : "";
+  const pagination = result?.key === requestKey ? result.data.pagination : null;
+
+  useEffect(() => {
+    if (!requestKey) return;
+    const controller = new AbortController();
+    fetchTransactionRegisters(accessToken, groupSlug, document, controller.signal, page)
+      .then((loaded) => {
+        if (!controller.signal.aborted) setResult({ key: requestKey, data: loaded });
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) setError({ key: requestKey, message: cause instanceof Error ? cause.message : "Unable to load transaction documents." });
+      });
+    return () => controller.abort();
+  }, [accessToken, groupSlug, document, page, requestKey]);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   return (
@@ -37,7 +68,7 @@ export default function TransactionManagementPage() {
           <div className="account-tabs" role="tablist" aria-label="Transaction types">
             {tabs.map((tab, index) => (
               <button
-                key={tab}
+                key={tab.document}
                 ref={(element) => { tabRefs.current[index] = element; }}
                 type="button"
                 role="tab"
@@ -45,7 +76,7 @@ export default function TransactionManagementPage() {
                 aria-controls={`transaction-panel-${index}`}
                 aria-selected={activeTab === index}
                 tabIndex={activeTab === index ? 0 : -1}
-                onClick={() => setActiveTab(index)}
+                onClick={() => { setActiveTab(index); setPage(1); }}
                 onKeyDown={(event) => {
                   let next = index;
                   if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
@@ -55,58 +86,31 @@ export default function TransactionManagementPage() {
                   else return;
                   event.preventDefault();
                   setActiveTab(next);
+                  setPage(1);
                   tabRefs.current[next]?.focus();
                 }}
-              >{tab}</button>
+              >{tab.label}</button>
             ))}
           </div>
-          <section role="tabpanel" id="transaction-panel-0" aria-labelledby="transaction-tab-0" hidden={activeTab !== 0} tabIndex={0}>
-            <p className="members-feedback">Sample receipts only. Expand a receipt to view its transaction entries.</p>
-            <div className="members-table-wrapper">
-              <table className="members-table receipt-table">
-                <caption>Payment receipts — placeholder data</caption>
-                <thead><tr><th scope="col" className="receipt-toggle-cell"><span className="receipt-sr-only">Expand</span></th><th scope="col">Receipt No.</th><th scope="col">Date</th><th scope="col">Member</th><th scope="col" className="receipt-amount">Total Amount</th></tr></thead>
-                <tbody>
-                  {receipts.map((receipt) => {
-                    const expanded = expandedReceipts.includes(receipt.id);
-                    return (
-                      <Fragment key={receipt.id}>
-                        <tr>
-                          <td className="receipt-toggle-cell">
-                            <button type="button" className="receipt-toggle" aria-label={`${expanded ? "Collapse" : "Expand"} receipt ${receipt.id}`} aria-expanded={expanded} aria-controls={`entries-${receipt.id}`} onClick={() => setExpandedReceipts((current) => expanded ? current.filter((id) => id !== receipt.id) : [...current, receipt.id])}>
-                              <span aria-hidden="true">{expanded ? "−" : "+"}</span>
-                            </button>
-                          </td>
-                          <th scope="row">{receipt.id}</th><td>{receipt.date}</td><td>{receipt.member}</td><td className="receipt-amount">{currency.format(receipt.entries.reduce((sum, entry) => sum + entry.amount, 0))}</td>
-                        </tr>
-                        <tr id={`entries-${receipt.id}`} hidden={!expanded} className="receipt-details">
-                          <td colSpan={5}>
-                            <table className="members-table receipt-entries">
-                              <caption>Transaction entries for {receipt.id}</caption>
-                              <thead><tr><th scope="col">Transaction No.</th><th scope="col">Description</th><th scope="col" className="receipt-amount">Amount</th></tr></thead>
-                              <tbody>{receipt.entries.map((entry) => <tr key={entry.id}><th scope="row">{entry.id}</th><td>{entry.description}</td><td className="receipt-amount">{currency.format(entry.amount)}</td></tr>)}</tbody>
-                            </table>
-                          </td>
-                        </tr>
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-          <section role="tabpanel" id="transaction-panel-1" aria-labelledby="transaction-tab-1" hidden={activeTab !== 1} tabIndex={0}>
-            <p className="members-feedback">Sample disbursements only. These are placeholder records.</p>
-            <div className="members-table-wrapper">
+          <section role="tabpanel" id={`transaction-panel-${activeTab}`} aria-labelledby={`transaction-tab-${activeTab}`} tabIndex={0}>
+            {!groupSlug && <p className="members-feedback" role="status">Please sign in through your community’s URL to load documents.</p>}
+            {requestKey && !documents && !currentError && <p className="members-feedback" role="status">Loading {tabs[activeTab].label.toLowerCase()}…</p>}
+            {currentError && <p className="members-feedback" role="alert">{currentError} <button className="text-button" type="button" onClick={() => setRetry((value) => value + 1)}>Try again</button></p>}
+            {documents && <div className="members-table-wrapper">
               <table className="members-table">
-                <caption>Disbursements — placeholder data</caption>
-                <thead><tr><th scope="col">Disbursement No.</th><th scope="col">Date</th><th scope="col">Payee</th><th scope="col">Description</th><th scope="col" className="receipt-amount">Amount</th></tr></thead>
+                <caption>{tabs[activeTab].label}</caption>
+                <thead><tr><th scope="col">#</th>{columns.map(([field, label]) => <th key={field} scope="col">{label}</th>)}</tr></thead>
                 <tbody>
-                  <tr><th scope="row">DS-0001</th><td>Oct 9, 2026</td><td>Sample Member A</td><td>Loan disbursement</td><td className="receipt-amount">{currency.format(5000)}</td></tr>
-                  <tr><th scope="row">DS-0002</th><td>Oct 8, 2026</td><td>Sample Supplier</td><td>Office supplies</td><td className="receipt-amount">{currency.format(350)}</td></tr>
+                  {documents.length === 0 && <tr><td colSpan={columns.length + 1}>No {tabs[activeTab].label.toLowerCase()} found.</td></tr>}
+                  {documents.map((row, index) => <tr key={String(row.id ?? index)}><th scope="row">{((pagination?.page ?? 1) - 1) * (pagination?.per_page ?? 0) + index + 1}</th>{columns.map(([field]) => <td key={field}>{displayValue(field, row[field])}</td>)}</tr>)}
                 </tbody>
               </table>
-            </div>
+            </div>}
+            {pagination && <nav aria-label="Document pages" className="members-pagination">
+              <button className="text-button" type="button" disabled={pagination.page <= 1} onClick={() => setPage(pagination.page - 1)}>Previous</button>
+              <span role="status"> Page {pagination.page} of {Math.max(1, pagination.total_pages)} · {pagination.total} documents </span>
+              <button className="text-button" type="button" disabled={pagination.page >= pagination.total_pages} onClick={() => setPage(pagination.page + 1)}>Next</button>
+            </nav>}
           </section>
         </>
       ) : (
