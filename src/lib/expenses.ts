@@ -47,7 +47,9 @@ export async function fetchExpenses(accessToken: string, groupSlug: string, sign
     throw new Error(typeof body?.error === "string" ? body.error : "Unable to load expenses.");
   }
   const ids = new Set<string>();
-  return body.data.map((value: unknown) => {
+  return body.data.filter((value: unknown) =>
+    !value || typeof value !== "object" || (value as Record<string, unknown>).expense_payment_status !== "PAID"
+  ).map((value: unknown) => {
     if (!value || typeof value !== "object") throw new Error("Unable to load expenses.");
     const row = value as Record<string, unknown>;
     if ((typeof row.id !== "string" && typeof row.id !== "number") || !String(row.id).trim() ||
