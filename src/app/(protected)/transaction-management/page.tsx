@@ -14,8 +14,8 @@ const tabs = [
 
 const columns = [
   ["document_number", "Document No."], ["occurred_at", "Date"],
-  ["type", "Type"], ["description", "Description"], ["amount", "Amount"],
-  ["status", "Status"], ["expense_payment_status", "Payment Status"],
+  ["type", "Type"], ["amount", "Amount"],
+  ["status", "Status"],
 ] as const;
 const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 const dateFormat = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Manila" });
@@ -28,11 +28,42 @@ function displayValue(field: string, value: unknown): string {
   return String(value);
 }
 
+function VoidDocumentDrawer({ documentNumber, onClose }: { documentNumber: string; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const cancelButton = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const panel = dialog.current;
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const overflow = document.body.style.overflow;
+    panel?.showModal();
+    cancelButton.current?.focus();
+    document.body.style.overflow = "hidden";
+    return () => {
+      panel?.close();
+      document.body.style.overflow = overflow;
+      trigger?.focus();
+    };
+  }, []);
+
+  return (
+    <dialog ref={dialog} className="cycle-drawer" aria-labelledby="void-document-title" aria-describedby="void-document-confirmation" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+      <div className="cycle-drawer-header"><h2 id="void-document-title">Void Document {documentNumber}</h2></div>
+      <p id="void-document-confirmation">Are you sure you want to void this document?</p>
+      <div className="cycle-drawer-footer">
+        <button ref={cancelButton} type="button" className="cycle-cancel" onClick={onClose}>Cancel</button>
+        <button type="button" className="submit-button">Void Document</button>
+      </div>
+    </dialog>
+  );
+}
+
 export default function TransactionManagementPage() {
   const { user, session } = useAuth();
   const { group, subdomain } = useCommunity();
   const [activeTab, setActiveTab] = useState(0);
   const [page, setPage] = useState(1);
+  const [voidDocument, setVoidDocument] = useState<{ key: string; number: string } | null>(null);
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ key: string; data: RegisterPage } | null>(null);
   const [error, setError] = useState<{ key: string; message: string } | null>(null);
@@ -99,10 +130,10 @@ export default function TransactionManagementPage() {
             {documents && <div className="members-table-wrapper">
               <table className="members-table">
                 <caption>{tabs[activeTab].label}</caption>
-                <thead><tr><th scope="col">#</th>{columns.map(([field, label]) => <th key={field} scope="col">{label}</th>)}</tr></thead>
+                <thead><tr><th scope="col">#</th>{columns.map(([field, label]) => <th key={field} scope="col">{label}</th>)}<th scope="col">Actions</th></tr></thead>
                 <tbody>
-                  {documents.length === 0 && <tr><td colSpan={columns.length + 1}>No {tabs[activeTab].label.toLowerCase()} found.</td></tr>}
-                  {documents.map((row, index) => <tr key={String(row.id ?? index)}><th scope="row">{((pagination?.page ?? 1) - 1) * (pagination?.per_page ?? 0) + index + 1}</th>{columns.map(([field]) => <td key={field}>{displayValue(field, row[field])}</td>)}</tr>)}
+                  {documents.length === 0 && <tr><td colSpan={columns.length + 2}>No {tabs[activeTab].label.toLowerCase()} found.</td></tr>}
+                  {documents.map((row, index) => <tr key={String(row.id ?? index)}><th scope="row">{((pagination?.page ?? 1) - 1) * (pagination?.per_page ?? 0) + index + 1}</th>{columns.map(([field]) => <td key={field}>{displayValue(field, row[field])}</td>)}<td><button type="button" className="text-button" aria-label={`Void document ${displayValue("document_number", row.document_number)}`} onClick={() => { if (requestKey) setVoidDocument({ key: requestKey, number: displayValue("document_number", row.document_number) }); }}>void</button></td></tr>)}
                 </tbody>
               </table>
             </div>}
@@ -112,6 +143,7 @@ export default function TransactionManagementPage() {
               <button className="text-button" type="button" disabled={pagination.page >= pagination.total_pages} onClick={() => setPage(pagination.page + 1)}>Next</button>
             </nav>}
           </section>
+          {voidDocument?.key === requestKey && <VoidDocumentDrawer documentNumber={voidDocument.number} onClose={() => setVoidDocument(null)} />}
         </>
       ) : (
         <p role="status">Transaction Management access is restricted to owners, admins, and treasurers with a verified profile.</p>
