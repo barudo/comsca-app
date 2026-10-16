@@ -109,15 +109,15 @@ export function DraftCyclePanel({ onClose, onCreate, returnFocus, initialDetails
         </div>
         <div className="field">
           <label htmlFor="cycle-receipt-counter">Receipt counter</label>
-          <input id="cycle-receipt-counter" name="receipt_counter" type="number" min="0" max={Number.MAX_SAFE_INTEGER} step="1" defaultValue={initialDetails?.receiptCounter ?? 0} required />
+          <input id="cycle-receipt-counter" name="receipt_counter" type="number" min="0" max={Number.MAX_SAFE_INTEGER} step="1" defaultValue={initialDetails?.receiptCounter ?? 5000} required />
         </div>
         <div className="field">
           <label htmlFor="cycle-disbursement-voucher-counter">Disbursement voucher counter</label>
-          <input id="cycle-disbursement-voucher-counter" name="disbursement_voucher_counter" type="number" min="0" max={Number.MAX_SAFE_INTEGER} step="1" defaultValue={initialDetails?.disbursementVoucherCounter ?? 0} required />
+          <input id="cycle-disbursement-voucher-counter" name="disbursement_voucher_counter" type="number" min="0" max={Number.MAX_SAFE_INTEGER} step="1" defaultValue={initialDetails?.disbursementVoucherCounter ?? 50000} required />
         </div>
         <div className="field">
           <label htmlFor="cycle-journal-voucher-counter">Journal voucher counter</label>
-          <input id="cycle-journal-voucher-counter" name="journal_voucher_counter" type="number" min="0" max={Number.MAX_SAFE_INTEGER} step="1" defaultValue={initialDetails?.journalVoucherCounter ?? 0} required />
+          <input id="cycle-journal-voucher-counter" name="journal_voucher_counter" type="number" min="0" max={Number.MAX_SAFE_INTEGER} step="1" defaultValue={initialDetails?.journalVoucherCounter ?? 500000} required />
         </div>
         {saveError && <p role="alert" className="cycle-field-hint">{saveError}</p>}
         <div className="cycle-drawer-footer">
