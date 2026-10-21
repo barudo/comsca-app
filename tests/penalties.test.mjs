@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { chargePenalty } from "../src/lib/penalties.ts";
 
-const payment = { amount: "500.00", debit: "102", credit: "205" };
+const payment = { user_id: "12", amount: "500.00", description: "Absent from meeting", debit: "102", credit: "205" };
 
-test("penalty charge posts amount and selected accounts with community authentication", async (t) => {
+test("penalty charge posts member, amount, description and selected accounts with community authentication", async (t) => {
   t.mock.method(globalThis, "fetch", async (url, options) => {
     assert.ok(url.endsWith("/api/v1/penalties/charge"));
     assert.equal(options.method, "POST");

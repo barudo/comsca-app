@@ -96,6 +96,7 @@ function ActionPanel({
   const [penaltyAmount, setPenaltyAmount] = useState(
     activeCycle?.details?.absencePenalty ?? "",
   );
+  const [penaltyDescription, setPenaltyDescription] = useState("");
   const currentAction =
     selection.action === "Shares and Payments"
       ? paymentOption
@@ -478,6 +479,7 @@ function ActionPanel({
         await chargePenalty(accessToken, subdomain, {
           user_id: String(selection.member.id),
           amount: Number(penaltyAmount).toFixed(2),
+          description: penaltyDescription,
           debit: String(debitAccount.id),
           credit: String(creditAccount.id),
         });
@@ -754,6 +756,17 @@ function ActionPanel({
                 <p id="business-penalty-hint" className="cycle-field-hint">
                   Defaults to the active cycle’s absence penalty.
                 </p>
+                <label htmlFor="business-penalty-description">Description</label>
+                <textarea
+                  id="business-penalty-description"
+                  name="description"
+                  rows={3}
+                  value={penaltyDescription}
+                  onChange={(event) => {
+                    setPenaltyDescription(event.target.value);
+                    setNotice("");
+                  }}
+                />
               </div>
             ) : (
               <>

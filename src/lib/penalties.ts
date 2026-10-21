@@ -1,6 +1,7 @@
 export type PenaltyCharge = {
   user_id: string;
   amount: string;
+  description: string;
   debit: string;
   credit: string;
 };
