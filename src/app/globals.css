@@ -581,6 +581,12 @@ h1 > span {
 }
 .cycle-drawer[open] { animation: cycle-slide-in 240ms ease-out; }
 .cycle-drawer::backdrop { background: rgb(12 31 65 / 40%); }
+.transaction-entry { padding: 16px 0; border-top: 1px solid var(--line); }
+.transaction-entry h3 { margin: 0 0 16px; }
+.transaction-entry-fields { margin: 0; }
+.transaction-entry-fields > div { margin-bottom: 12px; }
+.transaction-entry-fields dt { color: var(--muted); font-size: 14px; }
+.transaction-entry-fields dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .cycle-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .cycle-drawer-header h2 { font-size: 26px; margin: 12px 0 0; letter-spacing: -0.5px; }
 .cycle-drawer > p { line-height: 1.7; color: var(--muted); margin-bottom: 28px; }

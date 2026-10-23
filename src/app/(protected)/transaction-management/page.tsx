@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { fetchTransactionRegisters, type RegisterPage } from "@/lib/transaction-registers";
+import { fetchTransactionEntries, type TransactionEntry } from "@/lib/transaction-entries";
 import { canViewBusiness } from "@/lib/auth";
 
 const tabs = [
@@ -26,6 +27,64 @@ function displayValue(field: string, value: unknown): string {
   if (field === "occurred_at" && typeof value === "string" && !Number.isNaN(Date.parse(value))) return dateFormat.format(new Date(value));
   if (["type", "status", "expense_payment_status"].includes(field)) return String(value).toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
   return String(value);
+}
+
+function EntryFields({ fields }: { fields: Record<string, unknown> }) {
+  return <dl className="transaction-entry-fields">{Object.entries(fields).map(([field, value]) => (
+    <div key={field}>
+      <dt>{field.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}</dt>
+      <dd>{value !== null && typeof value === "object"
+        ? Array.isArray(value) ? JSON.stringify(value) : <EntryFields fields={value as Record<string, unknown>} />
+        : displayValue(field, value)}</dd>
+    </div>
+  ))}</dl>;
+}
+
+function TransactionEntriesDrawer({ accessToken, groupSlug, transactionId, documentNumber, onClose }: {
+  accessToken: string; groupSlug: string; transactionId: string; documentNumber: string; onClose: () => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [retry, setRetry] = useState(0);
+  const [result, setResult] = useState<{ attempt: number; entries?: TransactionEntry[]; error?: string } | null>(null);
+  const current = result?.attempt === retry ? result : null;
+
+  useEffect(() => {
+    const panel = dialog.current;
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const overflow = document.body.style.overflow;
+    panel?.showModal();
+    document.body.style.overflow = "hidden";
+    return () => {
+      panel?.close();
+      document.body.style.overflow = overflow;
+      trigger?.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchTransactionEntries(accessToken, groupSlug, transactionId, controller.signal)
+      .then((entries) => { if (!controller.signal.aborted) setResult({ attempt: retry, entries }); })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) setResult({ attempt: retry, error: cause instanceof Error ? cause.message : "Unable to load transaction entries." });
+      });
+    return () => controller.abort();
+  }, [accessToken, groupSlug, transactionId, retry]);
+
+  return <dialog ref={dialog} className="cycle-drawer" aria-labelledby="transaction-entries-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+    <div className="cycle-drawer-header">
+      <h2 id="transaction-entries-title">Transaction entries</h2>
+      <button type="button" className="text-button" onClick={onClose}>Close</button>
+    </div>
+    <p>Document {documentNumber}</p>
+    {!current && <p role="status">Loading transaction entries…</p>}
+    {current?.error && <p role="alert">{current.error} <button type="button" className="text-button" onClick={() => setRetry((value) => value + 1)}>Try again</button></p>}
+    {current?.entries?.length === 0 && <p role="status">No entries found for this transaction.</p>}
+    {current?.entries?.map((entry, index) => <section className="transaction-entry" key={index}>
+      <h3>Entry {index + 1}</h3>
+      <EntryFields fields={entry} />
+    </section>)}
+  </dialog>;
 }
 
 function VoidDocumentDrawer({ documentNumber, onClose }: { documentNumber: string; onClose: () => void }) {
@@ -63,6 +122,7 @@ export default function TransactionManagementPage() {
   const { group, subdomain } = useCommunity();
   const [activeTab, setActiveTab] = useState(0);
   const [page, setPage] = useState(1);
+  const [selectedDocument, setSelectedDocument] = useState<{ key: string; id: string; number: string } | null>(null);
   const [voidDocument, setVoidDocument] = useState<{ key: string; number: string } | null>(null);
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ key: string; data: RegisterPage } | null>(null);
@@ -133,7 +193,17 @@ export default function TransactionManagementPage() {
                 <thead><tr><th scope="col">#</th>{columns.map(([field, label]) => <th key={field} scope="col">{label}</th>)}<th scope="col">Actions</th></tr></thead>
                 <tbody>
                   {documents.length === 0 && <tr><td colSpan={columns.length + 2}>No {tabs[activeTab].label.toLowerCase()} found.</td></tr>}
-                  {documents.map((row, index) => <tr key={String(row.id ?? index)}><th scope="row">{((pagination?.page ?? 1) - 1) * (pagination?.per_page ?? 0) + index + 1}</th>{columns.map(([field]) => <td key={field}>{displayValue(field, row[field])}</td>)}<td><button type="button" className="text-button" aria-label={`Void document ${displayValue("document_number", row.document_number)}`} onClick={() => { if (requestKey) setVoidDocument({ key: requestKey, number: displayValue("document_number", row.document_number) }); }}>void</button></td></tr>)}
+                  {documents.map((row, index) => <tr key={String(row.id ?? index)}><th scope="row">{((pagination?.page ?? 1) - 1) * (pagination?.per_page ?? 0) + index + 1}</th>{columns.map(([field]) => <td key={field}>{field === "document_number" ? <button
+                    type="button"
+                    className="text-button"
+                    aria-haspopup="dialog"
+                    onClick={() => {
+                      if (requestKey) {
+                        const id = row.transaction_id ?? row.id;
+                        setSelectedDocument({ key: requestKey, id: typeof id === "string" || typeof id === "number" ? String(id) : "", number: displayValue(field, row[field]) });
+                      }
+                    }}
+                  >{displayValue(field, row[field])}</button> : displayValue(field, row[field])}</td>)}<td><button type="button" className="text-button" aria-label={`Void document ${displayValue("document_number", row.document_number)}`} onClick={() => { if (requestKey) setVoidDocument({ key: requestKey, number: displayValue("document_number", row.document_number) }); }}>void</button></td></tr>)}
                 </tbody>
               </table>
             </div>}
@@ -143,6 +213,14 @@ export default function TransactionManagementPage() {
               <button className="text-button" type="button" disabled={pagination.page >= pagination.total_pages} onClick={() => setPage(pagination.page + 1)}>Next</button>
             </nav>}
           </section>
+          {selectedDocument?.key === requestKey && <TransactionEntriesDrawer
+            key={selectedDocument.key + ":" + selectedDocument.id}
+            accessToken={accessToken}
+            groupSlug={groupSlug}
+            transactionId={selectedDocument.id}
+            documentNumber={selectedDocument.number}
+            onClose={() => setSelectedDocument(null)}
+          />}
           {voidDocument?.key === requestKey && <VoidDocumentDrawer documentNumber={voidDocument.number} onClose={() => setVoidDocument(null)} />}
         </>
       ) : (
