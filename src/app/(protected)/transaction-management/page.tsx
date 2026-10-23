@@ -30,22 +30,10 @@ function displayValue(field: string, value: unknown): string {
   return String(value);
 }
 
-function EntryFields({ fields }: { fields: Record<string, unknown> }) {
-  return <dl className="transaction-entry-fields">{Object.entries(fields).map(([field, value]) => (
-    <div key={field}>
-      <dt>{field.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}</dt>
-      <dd>{value !== null && typeof value === "object"
-        ? Array.isArray(value) ? JSON.stringify(value) : <EntryFields fields={value as Record<string, unknown>} />
-        : displayValue(field, value)}</dd>
-    </div>
-  ))}</dl>;
-}
-
 function TransactionEntriesDrawer({ accessToken, groupSlug, transactionId, documentNumber, transaction, documentType, community, onClose }: {
   accessToken: string; groupSlug: string; transactionId: string; documentNumber: string;
   transaction: Record<string, unknown>; documentType: RegisterDocument; community: string; onClose: () => void;
 }) {
-  const formattedDocument = documentType === "PR" || documentType === "DV";
   const dialog = useRef<HTMLDialogElement>(null);
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ attempt: number; entries?: TransactionEntry[]; error?: string } | null>(null);
@@ -74,20 +62,15 @@ function TransactionEntriesDrawer({ accessToken, groupSlug, transactionId, docum
     return () => controller.abort();
   }, [accessToken, groupSlug, transactionId, retry]);
 
-  return <dialog ref={dialog} className="cycle-drawer" aria-labelledby="transaction-entries-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+  return <dialog ref={dialog} className={documentType === "JV" ? "cycle-drawer journal-voucher-drawer" : "cycle-drawer"} aria-labelledby="transaction-entries-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
     <div className="cycle-drawer-header">
-      <h2 id="transaction-entries-title">{documentType === "PR" ? "Payment receipt" : documentType === "DV" ? "Disbursement voucher" : "Transaction entries"}</h2>
+      <h2 id="transaction-entries-title">{documentType === "PR" ? "Payment receipt" : documentType === "DV" ? "Disbursement voucher" : "Journal voucher"}</h2>
       <button type="button" className="text-button" onClick={onClose}>Close</button>
     </div>
     <p>Document {documentNumber}</p>
     {!current && <p role="status">Loading transaction entries…</p>}
     {current?.error && <p role="alert">{current.error} <button type="button" className="text-button" onClick={() => setRetry((value) => value + 1)}>Try again</button></p>}
-    {!formattedDocument && current?.entries?.length === 0 && <p role="status">No entries found for this transaction.</p>}
-    {formattedDocument && current?.entries && <TransactionDocument documentType={documentType} transaction={transaction} entries={current.entries} community={community} />}
-    {!formattedDocument && current?.entries?.map((entry, index) => <section className="transaction-entry" key={index}>
-      <h3>Entry {index + 1}</h3>
-      <EntryFields fields={entry} />
-    </section>)}
+    {current?.entries && <TransactionDocument documentType={documentType} transaction={transaction} entries={current.entries} community={community} />}
   </dialog>;
 }
 

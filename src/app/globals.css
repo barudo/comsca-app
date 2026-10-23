@@ -1392,3 +1392,6 @@ h1 > span {
 .payment-receipt tfoot { font-weight: 700; }
 .receipt-export { margin-top: 24px; }
 .receipt-export p { font-size: 13px; color: var(--muted); }
+
+.journal-voucher-drawer { width: min(760px, 100%); }
+.journal-voucher th:last-child, .journal-voucher td:last-child { width: 22%; }
