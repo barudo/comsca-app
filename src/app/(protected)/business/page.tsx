@@ -684,7 +684,22 @@ function ActionPanel({
               <>
                 <dl className="business-loan-summary">
                   <dt>Unpaid contributions</dt>
-                  <dd>{pesos(Number(memberBalances.unpaidContributions))}</dd>
+                  <dd>
+                    <button
+                      type="button"
+                      className="text-button business-balance-amount"
+                      aria-label={`Use unpaid contributions of ${pesos(Number(memberBalances.unpaidContributions))} as Contribution`}
+                      onClick={() => {
+                        setContributionAmount(
+                          Number(memberBalances.unpaidContributions).toFixed(2),
+                        );
+                        setNotice("");
+                        firstInput.current?.focus();
+                      }}
+                    >
+                      {pesos(Number(memberBalances.unpaidContributions))}
+                    </button>
+                  </dd>
                 </dl>
                 <div className="field">
                   <label htmlFor="business-contribution-amount">
@@ -711,7 +726,20 @@ function ActionPanel({
               <>
                 <dl className="business-loan-summary">
                   <dt>Unpaid penalties</dt>
-                  <dd>{pesos(remainingPenaltyAmount)}</dd>
+                  <dd>
+                    <button
+                      type="button"
+                      className="text-button business-balance-amount"
+                      aria-label={`Use unpaid penalties of ${pesos(remainingPenaltyAmount)} as Payment amount`}
+                      onClick={() => {
+                        setAmount(remainingPenaltyAmount.toFixed(2));
+                        setNotice("");
+                        firstInput.current?.focus();
+                      }}
+                    >
+                      {pesos(remainingPenaltyAmount)}
+                    </button>
+                  </dd>
                 </dl>
                 <div className="field">
                   <label htmlFor="business-penalty-payment-amount">
@@ -791,7 +819,18 @@ function ActionPanel({
                   </dt>
                   <dd>
                     {isLoanPayment ? (
-                      pesos(remainingLoanAmount)
+                      <button
+                        type="button"
+                        className="text-button business-balance-amount"
+                        aria-label={`Use remaining loan balance of ${pesos(remainingLoanAmount)} as Payment amount`}
+                        onClick={() => {
+                          setAmount(remainingLoanAmount.toFixed(2));
+                          setNotice("");
+                          firstInput.current?.focus();
+                        }}
+                      >
+                        {pesos(remainingLoanAmount)}
+                      </button>
                     ) : editingLoanDesired ? (
                       <div
                         id="loan-desired-editor"

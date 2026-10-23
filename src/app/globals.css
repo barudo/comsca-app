@@ -926,7 +926,8 @@ h1 > span {
 .business-loan-summary { margin: 0 0 24px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; }
 .business-loan-summary dt { color: var(--muted); font-size: 14px; }
 .business-loan-summary dd { margin: 12px 0 0; font-size: 28px; font-weight: 700; }
-.business-applied-loan { font: inherit; text-decoration: underline; text-underline-offset: 4px; }
+.business-applied-loan,
+.business-balance-amount { font: inherit; text-decoration: underline; text-underline-offset: 4px; }
 .business-loan-desired-editor { display: grid; gap: 16px; }
 .cycle-draft-form .business-loan-desired-editor .field { margin: 0; }
 .business-loan-desired-editor .submit-button { margin: 0; }
