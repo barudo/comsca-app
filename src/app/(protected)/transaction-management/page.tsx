@@ -5,6 +5,7 @@ import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { fetchTransactionRegisters, type RegisterPage } from "@/lib/transaction-registers";
 import { fetchTransactionEntries, type TransactionEntry } from "@/lib/transaction-entries";
+import { PaymentReceipt } from "@/components/payment-receipt";
 import { canViewBusiness } from "@/lib/auth";
 
 const tabs = [
@@ -40,8 +41,9 @@ function EntryFields({ fields }: { fields: Record<string, unknown> }) {
   ))}</dl>;
 }
 
-function TransactionEntriesDrawer({ accessToken, groupSlug, transactionId, documentNumber, onClose }: {
-  accessToken: string; groupSlug: string; transactionId: string; documentNumber: string; onClose: () => void;
+function TransactionEntriesDrawer({ accessToken, groupSlug, transactionId, documentNumber, transaction, isReceipt, community, onClose }: {
+  accessToken: string; groupSlug: string; transactionId: string; documentNumber: string;
+  transaction: Record<string, unknown>; isReceipt: boolean; community: string; onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [retry, setRetry] = useState(0);
@@ -73,14 +75,15 @@ function TransactionEntriesDrawer({ accessToken, groupSlug, transactionId, docum
 
   return <dialog ref={dialog} className="cycle-drawer" aria-labelledby="transaction-entries-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
     <div className="cycle-drawer-header">
-      <h2 id="transaction-entries-title">Transaction entries</h2>
+      <h2 id="transaction-entries-title">{isReceipt ? "Payment receipt" : "Transaction entries"}</h2>
       <button type="button" className="text-button" onClick={onClose}>Close</button>
     </div>
     <p>Document {documentNumber}</p>
     {!current && <p role="status">Loading transaction entries…</p>}
     {current?.error && <p role="alert">{current.error} <button type="button" className="text-button" onClick={() => setRetry((value) => value + 1)}>Try again</button></p>}
-    {current?.entries?.length === 0 && <p role="status">No entries found for this transaction.</p>}
-    {current?.entries?.map((entry, index) => <section className="transaction-entry" key={index}>
+    {!isReceipt && current?.entries?.length === 0 && <p role="status">No entries found for this transaction.</p>}
+    {isReceipt && current?.entries && <PaymentReceipt transaction={transaction} entries={current.entries} community={community} />}
+    {!isReceipt && current?.entries?.map((entry, index) => <section className="transaction-entry" key={index}>
       <h3>Entry {index + 1}</h3>
       <EntryFields fields={entry} />
     </section>)}
@@ -122,7 +125,7 @@ export default function TransactionManagementPage() {
   const { group, subdomain } = useCommunity();
   const [activeTab, setActiveTab] = useState(0);
   const [page, setPage] = useState(1);
-  const [selectedDocument, setSelectedDocument] = useState<{ key: string; id: string; number: string } | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<{ key: string; id: string; number: string; transaction: Record<string, unknown> } | null>(null);
   const [voidDocument, setVoidDocument] = useState<{ key: string; number: string } | null>(null);
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ key: string; data: RegisterPage } | null>(null);
@@ -200,7 +203,7 @@ export default function TransactionManagementPage() {
                     onClick={() => {
                       if (requestKey) {
                         const id = row.transaction_id ?? row.id;
-                        setSelectedDocument({ key: requestKey, id: typeof id === "string" || typeof id === "number" ? String(id) : "", number: displayValue(field, row[field]) });
+                        setSelectedDocument({ key: requestKey, transaction: row, id: typeof id === "string" || typeof id === "number" ? String(id) : "", number: displayValue(field, row[field]) });
                       }
                     }}
                   >{displayValue(field, row[field])}</button> : displayValue(field, row[field])}</td>)}<td><button type="button" className="text-button" aria-label={`Void document ${displayValue("document_number", row.document_number)}`} onClick={() => { if (requestKey) setVoidDocument({ key: requestKey, number: displayValue("document_number", row.document_number) }); }}>void</button></td></tr>)}
@@ -219,6 +222,9 @@ export default function TransactionManagementPage() {
             groupSlug={groupSlug}
             transactionId={selectedDocument.id}
             documentNumber={selectedDocument.number}
+            transaction={selectedDocument.transaction}
+            isReceipt={document === "PR"}
+            community={group?.name || subdomain || "COMSCA"}
             onClose={() => setSelectedDocument(null)}
           />}
           {voidDocument?.key === requestKey && <VoidDocumentDrawer documentNumber={voidDocument.number} onClose={() => setVoidDocument(null)} />}

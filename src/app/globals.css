@@ -1379,3 +1379,16 @@ h1 > span {
 @media (min-width: 1024px) {
   .disburse-expenses { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+
+.payment-receipt { margin-top: 24px; padding: 24px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 14px; line-height: 1.8; }
+.payment-receipt header { text-align: center; padding-bottom: 16px; border-bottom: 2px solid var(--ink); }
+.payment-receipt header p { margin: 0; }
+.payment-receipt h2 { font-size: 22px; text-transform: uppercase; letter-spacing: 2px; }
+.receipt-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin: 20px 0; }
+.receipt-payer { border-bottom: 1px solid; padding: 0 4px; overflow-wrap: anywhere; }
+.payment-receipt table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 24px; }
+.payment-receipt th, .payment-receipt td { text-align: left; padding: 12px 4px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.payment-receipt th:last-child, .payment-receipt td:last-child { text-align: right; width: 32%; }
+.payment-receipt tfoot { font-weight: 700; }
+.receipt-export { margin-top: 24px; }
+.receipt-export p { font-size: 13px; color: var(--muted); }
