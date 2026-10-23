@@ -47,3 +47,11 @@ export function receiptPayer(transaction: Fields, entries: Fields[]): string {
 export function receiptParticular(entry: Fields): string {
   return text(entry.description) || text(entry.particulars) || text(entry.type).toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Payment";
 }
+
+export function voucherPayee(transaction: Fields, entries: Fields[]): string {
+  const name = (fields: Fields) => person(fields.payee_name) || person(fields.payee) || person(fields.paid_to) || person(fields.recipient_name) || person(fields.member_name) || person(fields.user_name) || person(fields.user) || person(fields.member);
+  const direct = name(transaction);
+  if (direct) return direct;
+  const names = [...new Set(entries.map(name).filter(Boolean))];
+  return names.length === 1 ? names[0] : "";
+}

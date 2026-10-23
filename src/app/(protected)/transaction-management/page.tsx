@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
-import { fetchTransactionRegisters, type RegisterPage } from "@/lib/transaction-registers";
+import { fetchTransactionRegisters, type RegisterPage, type RegisterDocument } from "@/lib/transaction-registers";
 import { fetchTransactionEntries, type TransactionEntry } from "@/lib/transaction-entries";
-import { PaymentReceipt } from "@/components/payment-receipt";
+import { TransactionDocument } from "@/components/transaction-document";
 import { canViewBusiness } from "@/lib/auth";
 
 const tabs = [
@@ -41,10 +41,11 @@ function EntryFields({ fields }: { fields: Record<string, unknown> }) {
   ))}</dl>;
 }
 
-function TransactionEntriesDrawer({ accessToken, groupSlug, transactionId, documentNumber, transaction, isReceipt, community, onClose }: {
+function TransactionEntriesDrawer({ accessToken, groupSlug, transactionId, documentNumber, transaction, documentType, community, onClose }: {
   accessToken: string; groupSlug: string; transactionId: string; documentNumber: string;
-  transaction: Record<string, unknown>; isReceipt: boolean; community: string; onClose: () => void;
+  transaction: Record<string, unknown>; documentType: RegisterDocument; community: string; onClose: () => void;
 }) {
+  const formattedDocument = documentType === "PR" || documentType === "DV";
   const dialog = useRef<HTMLDialogElement>(null);
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ attempt: number; entries?: TransactionEntry[]; error?: string } | null>(null);
@@ -75,15 +76,15 @@ function TransactionEntriesDrawer({ accessToken, groupSlug, transactionId, docum
 
   return <dialog ref={dialog} className="cycle-drawer" aria-labelledby="transaction-entries-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
     <div className="cycle-drawer-header">
-      <h2 id="transaction-entries-title">{isReceipt ? "Payment receipt" : "Transaction entries"}</h2>
+      <h2 id="transaction-entries-title">{documentType === "PR" ? "Payment receipt" : documentType === "DV" ? "Disbursement voucher" : "Transaction entries"}</h2>
       <button type="button" className="text-button" onClick={onClose}>Close</button>
     </div>
     <p>Document {documentNumber}</p>
     {!current && <p role="status">Loading transaction entries…</p>}
     {current?.error && <p role="alert">{current.error} <button type="button" className="text-button" onClick={() => setRetry((value) => value + 1)}>Try again</button></p>}
-    {!isReceipt && current?.entries?.length === 0 && <p role="status">No entries found for this transaction.</p>}
-    {isReceipt && current?.entries && <PaymentReceipt transaction={transaction} entries={current.entries} community={community} />}
-    {!isReceipt && current?.entries?.map((entry, index) => <section className="transaction-entry" key={index}>
+    {!formattedDocument && current?.entries?.length === 0 && <p role="status">No entries found for this transaction.</p>}
+    {formattedDocument && current?.entries && <TransactionDocument documentType={documentType} transaction={transaction} entries={current.entries} community={community} />}
+    {!formattedDocument && current?.entries?.map((entry, index) => <section className="transaction-entry" key={index}>
       <h3>Entry {index + 1}</h3>
       <EntryFields fields={entry} />
     </section>)}
@@ -223,7 +224,7 @@ export default function TransactionManagementPage() {
             transactionId={selectedDocument.id}
             documentNumber={selectedDocument.number}
             transaction={selectedDocument.transaction}
-            isReceipt={document === "PR"}
+            documentType={document}
             community={group?.name || subdomain || "COMSCA"}
             onClose={() => setSelectedDocument(null)}
           />}
