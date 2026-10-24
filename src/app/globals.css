@@ -1388,7 +1388,9 @@ h1 > span {
   .disburse-expenses { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
-.payment-receipt { margin-top: 24px; padding: 24px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 14px; line-height: 1.8; }
+.payment-receipt { position: relative; overflow: hidden; container-type: inline-size; margin-top: 24px; padding: 24px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 14px; line-height: 1.8; }
+.document-void-watermark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 1; }
+.document-void-watermark span { color: rgba(185, 28, 28, 0.28); font-size: 20cqw; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; transform: rotate(-30deg); }
 .payment-receipt header { text-align: center; padding-bottom: 16px; border-bottom: 2px solid var(--ink); }
 .payment-receipt header p { margin: 0; }
 .payment-receipt h2 { font-size: 22px; text-transform: uppercase; letter-spacing: 2px; }

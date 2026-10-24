@@ -57,6 +57,9 @@ export function TransactionDocument({ transaction, entries, community, documentT
       .journal-voucher th:last-child, .journal-voucher td:last-child { width: 22%; }
       thead { display: table-header-group; } tr { break-inside: avoid; }
       tfoot { font-weight: bold; } .receipt-note { margin-top: 28px; }
+      .payment-receipt { position: relative; overflow: hidden; }
+      .document-void-watermark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 1; }
+      .document-void-watermark span { color: rgba(185, 28, 28, 0.28); font-size: 100px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; transform: rotate(-30deg); print-color-adjust: exact; -webkit-print-color-adjust: exact; }
     `;
     doc.head.append(style);
     doc.body.append(receipt.current.cloneNode(true));
@@ -67,6 +70,7 @@ export function TransactionDocument({ transaction, entries, community, documentT
 
   return <>
     <article ref={receipt} className={isJournal ? "payment-receipt journal-voucher" : "payment-receipt"}>
+      {String(transaction.status).toLowerCase() === "voided" && <div className="document-void-watermark" aria-hidden="true"><span>Voided</span></div>}
       <header><p>{community}</p><h2>{title}</h2></header>
       <div className="receipt-meta"><span>No. <strong>{String(transaction.document_number ?? "—")}</strong></span><span>{date}</span></div>
       {Boolean(transaction.status) && <p>Status: {String(transaction.status).replace(/_/g, " ")}</p>}
