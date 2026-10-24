@@ -118,8 +118,8 @@ export async function fetchCycleMembers(accessToken: string, groupSlug: string, 
     }
     const parsed = parseMembers([member])[0];
     const fields = member as Record<string, unknown>;
-    const amount = (value: unknown) => {
-      if ((typeof value !== "string" && typeof value !== "number") || String(value).trim() === "" || !Number.isFinite(Number(value)) || Number(value) < 0) {
+    const amount = (value: unknown, allowNegative = false) => {
+      if ((typeof value !== "string" && typeof value !== "number") || String(value).trim() === "" || !Number.isFinite(Number(value)) || (!allowNegative && Number(value) < 0)) {
         throw new Error("Unable to load current cycle members. Please try again.");
       }
       return String(value);
@@ -127,7 +127,7 @@ export async function fetchCycleMembers(accessToken: string, groupSlug: string, 
     return {
       ...parsed,
       totalShares: amount(fields.total_shares),
-      remainingLoan: amount(fields.remaining_loan),
+      remainingLoan: amount(fields.remaining_loan, true),
       loanApplied: amount(fields.loan_applied),
       unpaidPenalties: amount(fields.unpaid_penalties),
       unpaidContributions: amount(fields.unpaid_contributions),

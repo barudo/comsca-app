@@ -205,6 +205,21 @@ test("business cycle members load member balances from the authenticated active-
   }]);
 });
 
+test("cycle members preserve negative remaining loans without blocking the member list", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({
+    success: true,
+    current_cycle_id: "1",
+    members: ["-5000.00", "0.00"].map((remaining_loan, index) => ({
+      id: String(index + 1), first_name: "Member", family_name: null,
+      total_shares: "11000.00", remaining_loan, loan_applied: "0.00",
+      unpaid_penalties: "0.00", unpaid_contributions: "0.00",
+    })),
+  }));
+  const { fetchCycleMembers } = await import("../src/lib/members.ts");
+  const members = await fetchCycleMembers("access", "cebu", 1);
+  assert.deepEqual(members.map((member) => member.remainingLoan), ["-5000.00", "0.00"]);
+});
+
 test("cycle member balances reject stale cycles and malformed financial amounts", async (t) => {
   const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({ success: true, current_cycle_id: "4", members: [] }));
   const { fetchCycleMembers } = await import("../src/lib/members.ts");
