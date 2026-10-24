@@ -7,6 +7,13 @@ import { buildMemberLedger, describeMemberTransaction, fetchMemberTransactions, 
 
 const pesos = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
+const balanceCards: { label: string; key: keyof LedgerAmounts }[] = [
+  { label: "Total Shares", key: "ownership" },
+  { label: "Loan Balance", key: "loan" },
+  { label: "Unpaid Contribution", key: "contribution" },
+  { label: "Unpaid Penalty", key: "penalty" },
+];
+
 function formatDate(value: string | null): string {
   if (!value) return "—";
   const date = new Date(value);
@@ -88,6 +95,14 @@ export default function MyAccountPage() {
   return (
     <main className="protected-content">
       <h1>My Account</h1>
+      <section className="dashboard-metrics" aria-label="Your account balances" aria-busy={loading}>
+        {balanceCards.map(({ label, key }) => (
+          <article className="dashboard-metric" key={key}>
+            <h2>{label}</h2>
+            <p className="dashboard-metric-value">{ledger ? formatAmount(ledger.totals[key]) : "—"}</p>
+          </article>
+        ))}
+      </section>
       <p>Your transaction history and current balances.</p>
       {loading && <p className="members-feedback" role="status">Loading transactions…</p>}
       {!requestKey && <p className="members-feedback" role="status">Please sign in through your community’s URL to view your transactions.</p>}
