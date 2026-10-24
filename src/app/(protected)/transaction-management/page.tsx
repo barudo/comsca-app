@@ -74,7 +74,8 @@ function TransactionEntriesDrawer({ accessToken, groupSlug, transactionId, docum
   </dialog>;
 }
 
-function VoidDocumentDrawer({ documentNumber, onClose }: { documentNumber: string; onClose: () => void }) {
+function VoidDocumentDrawer({ documentNumber, documentType, onClose }: { documentNumber: string; documentType: RegisterDocument; onClose: () => void }) {
+  const documentName = documentType === "PR" ? "Payment Receipt" : documentType === "DV" ? "Disbursement Voucher" : "Journal Voucher";
   const dialog = useRef<HTMLDialogElement>(null);
   const cancelButton = useRef<HTMLButtonElement>(null);
 
@@ -94,8 +95,8 @@ function VoidDocumentDrawer({ documentNumber, onClose }: { documentNumber: strin
 
   return (
     <dialog ref={dialog} className="cycle-drawer" aria-labelledby="void-document-title" aria-describedby="void-document-confirmation" onCancel={(event) => { event.preventDefault(); onClose(); }}>
-      <div className="cycle-drawer-header"><h2 id="void-document-title">Void Document {documentNumber}</h2></div>
-      <p id="void-document-confirmation">Are you sure you want to void this document?</p>
+      <div className="cycle-drawer-header"><h2 id="void-document-title">Void {documentName} No. {documentNumber}</h2></div>
+      <p id="void-document-confirmation">Are you sure you want to void this {documentName.toLowerCase()}?</p>
       <div className="cycle-drawer-footer">
         <button ref={cancelButton} type="button" className="cycle-cancel" onClick={onClose}>Cancel</button>
         <button type="button" className="submit-button">Void Document</button>
@@ -211,7 +212,7 @@ export default function TransactionManagementPage() {
             community={group?.name || subdomain || "COMSCA"}
             onClose={() => setSelectedDocument(null)}
           />}
-          {voidDocument?.key === requestKey && <VoidDocumentDrawer documentNumber={voidDocument.number} onClose={() => setVoidDocument(null)} />}
+          {voidDocument?.key === requestKey && <VoidDocumentDrawer documentNumber={voidDocument.number} documentType={document} onClose={() => setVoidDocument(null)} />}
         </>
       ) : (
         <p role="status">Transaction Management access is restricted to owners, admins, and treasurers with a verified profile.</p>
