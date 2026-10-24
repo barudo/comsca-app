@@ -205,7 +205,7 @@ export default function TransactionManagementPage() {
                 <thead><tr><th scope="col">#</th>{columns.map(([field, label]) => <th key={field} scope="col">{label}</th>)}<th scope="col">Actions</th></tr></thead>
                 <tbody>
                   {documents.length === 0 && <tr><td colSpan={columns.length + 2}>No {tabs[activeTab].label.toLowerCase()} found.</td></tr>}
-                  {documents.map((row, index) => <tr key={String(row.id ?? index)}><th scope="row">{((pagination?.page ?? 1) - 1) * (pagination?.per_page ?? 0) + index + 1}</th>{columns.map(([field]) => <td key={field}>{field === "document_number" ? <button
+                  {documents.map((row, index) => <tr key={String(row.id ?? index)} className={String(row.status).toLowerCase() === "voided" ? "transaction-row-voided" : undefined}><th scope="row">{((pagination?.page ?? 1) - 1) * (pagination?.per_page ?? 0) + index + 1}</th>{columns.map(([field]) => <td key={field}>{field === "document_number" ? <button
                     type="button"
                     className="text-button"
                     aria-haspopup="dialog"

@@ -665,6 +665,13 @@ h1 > span {
 .members-table tbody th {
   font-weight: 500;
 }
+.members-table .transaction-row-voided {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+.members-table .transaction-row-voided .text-button {
+  color: inherit;
+}
 .member-ledger-wrapper {
   margin-top: 24px;
   overflow-x: auto;
