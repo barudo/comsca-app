@@ -7,6 +7,7 @@ import { fetchTransactionRegisters, type RegisterPage, type RegisterDocument } f
 import { fetchTransactionEntries, type TransactionEntry } from "@/lib/transaction-entries";
 import { TransactionDocument } from "@/components/transaction-document";
 import { canViewBusiness } from "@/lib/auth";
+import { voidTransaction } from "@/lib/void-transaction";
 
 const tabs = [
   { label: "Payment Receipts", document: "PR" },
@@ -74,10 +75,32 @@ function TransactionEntriesDrawer({ accessToken, groupSlug, transactionId, docum
   </dialog>;
 }
 
-function VoidDocumentDrawer({ documentNumber, documentType, onClose }: { documentNumber: string; documentType: RegisterDocument; onClose: () => void }) {
+function VoidDocumentDrawer({ accessToken, groupSlug, transactionId, documentNumber, documentType, onClose, onVoided }: {
+  accessToken: string; groupSlug: string; transactionId: string; documentNumber: string;
+  documentType: RegisterDocument; onClose: () => void; onVoided: () => void;
+}) {
   const documentName = documentType === "PR" ? "Payment Receipt" : documentType === "DV" ? "Disbursement Voucher" : "Journal Voucher";
   const dialog = useRef<HTMLDialogElement>(null);
   const cancelButton = useRef<HTMLButtonElement>(null);
+  const submitting = useRef(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleVoid() {
+    if (submitting.current) return;
+    submitting.current = true;
+    setPending(true);
+    setError("");
+    try {
+      await voidTransaction(accessToken, groupSlug, transactionId);
+      onVoided();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to void this document.");
+    } finally {
+      submitting.current = false;
+      setPending(false);
+    }
+  }
 
   useEffect(() => {
     const panel = dialog.current;
@@ -94,12 +117,13 @@ function VoidDocumentDrawer({ documentNumber, documentType, onClose }: { documen
   }, []);
 
   return (
-    <dialog ref={dialog} className="cycle-drawer" aria-labelledby="void-document-title" aria-describedby="void-document-confirmation" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+    <dialog ref={dialog} className="cycle-drawer" aria-labelledby="void-document-title" aria-describedby="void-document-confirmation" aria-busy={pending} onCancel={(event) => { event.preventDefault(); if (!submitting.current) onClose(); }}>
       <div className="cycle-drawer-header"><h2 id="void-document-title">Void {documentName} No. {documentNumber}</h2></div>
       <p id="void-document-confirmation">Are you sure you want to void this {documentName.toLowerCase()}?</p>
+      {error && <p role="alert">{error}</p>}
       <div className="cycle-drawer-footer">
-        <button ref={cancelButton} type="button" className="cycle-cancel" onClick={onClose}>Cancel</button>
-        <button type="button" className="submit-button">Void Document</button>
+        <button ref={cancelButton} type="button" className="cycle-cancel" disabled={pending} onClick={onClose}>Cancel</button>
+        <button type="button" className="submit-button" disabled={pending} onClick={handleVoid}>{pending ? "Voiding…" : "Void Document"}</button>
       </div>
     </dialog>
   );
@@ -111,7 +135,7 @@ export default function TransactionManagementPage() {
   const [activeTab, setActiveTab] = useState(0);
   const [page, setPage] = useState(1);
   const [selectedDocument, setSelectedDocument] = useState<{ key: string; id: string; number: string; transaction: Record<string, unknown> } | null>(null);
-  const [voidDocument, setVoidDocument] = useState<{ key: string; number: string } | null>(null);
+  const [voidDocument, setVoidDocument] = useState<{ key: string; id: string; number: string } | null>(null);
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ key: string; data: RegisterPage } | null>(null);
   const [error, setError] = useState<{ key: string; message: string } | null>(null);
@@ -191,7 +215,12 @@ export default function TransactionManagementPage() {
                         setSelectedDocument({ key: requestKey, transaction: row, id: typeof id === "string" || typeof id === "number" ? String(id) : "", number: displayValue(field, row[field]) });
                       }
                     }}
-                  >{displayValue(field, row[field])}</button> : displayValue(field, row[field])}</td>)}<td><button type="button" className="text-button" aria-label={`Void document ${displayValue("document_number", row.document_number)}`} onClick={() => { if (requestKey) setVoidDocument({ key: requestKey, number: displayValue("document_number", row.document_number) }); }}>void</button></td></tr>)}
+                  >{displayValue(field, row[field])}</button> : displayValue(field, row[field])}</td>)}<td><button type="button" className="text-button" aria-label={`Void document ${displayValue("document_number", row.document_number)}`} onClick={() => {
+                    if (requestKey) {
+                      const id = row.transaction_id ?? row.id;
+                      setVoidDocument({ key: requestKey, id: typeof id === "string" || typeof id === "number" ? String(id) : "", number: displayValue("document_number", row.document_number) });
+                    }
+                  }}>void</button></td></tr>)}
                 </tbody>
               </table>
             </div>}
@@ -212,7 +241,15 @@ export default function TransactionManagementPage() {
             community={group?.name || subdomain || "COMSCA"}
             onClose={() => setSelectedDocument(null)}
           />}
-          {voidDocument?.key === requestKey && <VoidDocumentDrawer documentNumber={voidDocument.number} documentType={document} onClose={() => setVoidDocument(null)} />}
+          {voidDocument?.key === requestKey && <VoidDocumentDrawer
+            accessToken={accessToken}
+            groupSlug={groupSlug}
+            transactionId={voidDocument.id}
+            documentNumber={voidDocument.number}
+            documentType={document}
+            onClose={() => setVoidDocument(null)}
+            onVoided={() => { setVoidDocument(null); setRetry((value) => value + 1); }}
+          />}
         </>
       ) : (
         <p role="status">Transaction Management access is restricted to owners, admins, and treasurers with a verified profile.</p>
