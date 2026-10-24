@@ -69,6 +69,7 @@ function TransactionEntriesDrawer({ accessToken, groupSlug, transactionId, docum
       <button type="button" className="text-button" onClick={onClose}>Close</button>
     </div>
     <p>Document {documentNumber}</p>
+    {String(transaction.status).toLowerCase() === "voided" && <p><strong>Voided</strong></p>}
     {!current && <p role="status">Loading transaction entries…</p>}
     {current?.error && <p role="alert">{current.error} <button type="button" className="text-button" onClick={() => setRetry((value) => value + 1)}>Try again</button></p>}
     {current?.entries && <TransactionDocument documentType={documentType} transaction={transaction} entries={current.entries} community={community} />}
