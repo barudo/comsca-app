@@ -12,7 +12,11 @@ import { canManageCycles, canViewBusiness, canViewMembers } from "@/lib/auth";
 const administrationLinks = [
   { href: "/cycles", label: "Cycle", canView: canManageCycles },
   { href: "/groups", label: "Members", canView: canViewMembers },
-  { href: "/transaction-management", label: "Transaction Management", canView: canViewBusiness },
+  {
+    href: "/transaction-management",
+    label: "Transaction Management",
+    canView: canViewBusiness,
+  },
 ];
 
 const businessLinks = [
@@ -20,7 +24,6 @@ const businessLinks = [
   { href: "/donations", label: "Donations" },
   { href: "/expense", label: "Add Expense" },
   { href: "/disburse", label: "Disburse Payment" },
-  { href: "/other-business", label: "Others..." },
 ];
 
 export function ProtectedNavigation() {
@@ -28,23 +31,35 @@ export function ProtectedNavigation() {
   const pathname = usePathname();
   const { group } = useCommunity();
   const { user, setSession } = useAuth();
-  const visibleAdministrationLinks = administrationLinks.filter(({ canView }) => canView(user));
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`) ||
-    (href === "/groups" && (pathname === "/members" || pathname.startsWith("/members/")));
+  const visibleAdministrationLinks = administrationLinks.filter(({ canView }) =>
+    canView(user),
+  );
+  const isActive = (href: string) =>
+    pathname === href ||
+    pathname.startsWith(`${href}/`) ||
+    (href === "/groups" &&
+      (pathname === "/members" || pathname.startsWith("/members/")));
   const administrationMenu = useRef<HTMLDetailsElement>(null);
-  const administrationActive = visibleAdministrationLinks.some(({ href }) => isActive(href));
+  const administrationActive = visibleAdministrationLinks.some(({ href }) =>
+    isActive(href),
+  );
   const accountMenu = useRef<HTMLDetailsElement>(null);
   const businessMenu = useRef<HTMLDetailsElement>(null);
   const businessActive = businessLinks.some(({ href }) => isActive(href));
 
   useEffect(() => {
     function closeOnOutsideClick(event: PointerEvent) {
-      for (const menu of [accountMenu.current, administrationMenu.current, businessMenu.current]) {
+      for (const menu of [
+        accountMenu.current,
+        administrationMenu.current,
+        businessMenu.current,
+      ]) {
         if (menu && !menu.contains(event.target as Node)) menu.open = false;
       }
     }
     document.addEventListener("pointerdown", closeOnOutsideClick);
-    return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
+    return () =>
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
   }, []);
 
   return (
@@ -52,14 +67,20 @@ export function ProtectedNavigation() {
       <div className="protected-nav">
         <Brand href="/dashboard" />
         <nav aria-label="Main navigation" className="protected-links">
-          <Link href="/dashboard" aria-current={pathname === "/dashboard" ? "page" : undefined}>Dashboard</Link>
+          <Link
+            href="/dashboard"
+            aria-current={pathname === "/dashboard" ? "page" : undefined}
+          >
+            Dashboard
+          </Link>
           {canViewBusiness(user) && activeCycle && (
             <details
               key={`business:${pathname}`}
               className="protected-account-menu protected-administration-menu"
               ref={businessMenu}
               onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+                if (!event.currentTarget.contains(event.relatedTarget))
+                  event.currentTarget.open = false;
               }}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
@@ -68,7 +89,9 @@ export function ProtectedNavigation() {
                 }
               }}
             >
-              <summary data-active={businessActive || undefined}>Business<span aria-hidden="true">▾</span></summary>
+              <summary data-active={businessActive || undefined}>
+                Business<span aria-hidden="true">▾</span>
+              </summary>
               <div className="protected-account-dropdown">
                 {businessLinks.map(({ href, label }) => (
                   <Link
@@ -78,7 +101,10 @@ export function ProtectedNavigation() {
                     onClick={() => {
                       if (businessMenu.current) {
                         businessMenu.current.open = false;
-                        if (pathname === href) businessMenu.current.querySelector("summary")?.focus();
+                        if (pathname === href)
+                          businessMenu.current
+                            .querySelector("summary")
+                            ?.focus();
                       }
                     }}
                   >
@@ -94,7 +120,8 @@ export function ProtectedNavigation() {
               className="protected-account-menu protected-administration-menu"
               ref={administrationMenu}
               onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+                if (!event.currentTarget.contains(event.relatedTarget))
+                  event.currentTarget.open = false;
               }}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
@@ -103,7 +130,9 @@ export function ProtectedNavigation() {
                 }
               }}
             >
-              <summary data-active={administrationActive || undefined}>Administration<span aria-hidden="true">▾</span></summary>
+              <summary data-active={administrationActive || undefined}>
+                Administration<span aria-hidden="true">▾</span>
+              </summary>
               <div className="protected-account-dropdown">
                 {visibleAdministrationLinks.map(({ href, label }) => (
                   <Link
@@ -113,7 +142,10 @@ export function ProtectedNavigation() {
                     onClick={() => {
                       if (administrationMenu.current) {
                         administrationMenu.current.open = false;
-                        if (pathname === href) administrationMenu.current.querySelector("summary")?.focus();
+                        if (pathname === href)
+                          administrationMenu.current
+                            .querySelector("summary")
+                            ?.focus();
                       }
                     }}
                   >
@@ -125,13 +157,16 @@ export function ProtectedNavigation() {
           )}
         </nav>
         <div className="protected-account">
-          {group?.name && <span className="protected-community">{group.name}</span>}
+          {group?.name && (
+            <span className="protected-community">{group.name}</span>
+          )}
           {user && (
             <details
               className="protected-account-menu"
               ref={accountMenu}
               onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+                if (!event.currentTarget.contains(event.relatedTarget))
+                  event.currentTarget.open = false;
               }}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
@@ -140,19 +175,89 @@ export function ProtectedNavigation() {
                 }
               }}
             >
-              <summary className="protected-user">{user.name}<span aria-hidden="true">▾</span></summary>
+              <summary className="protected-user">
+                {user.name}
+                <span aria-hidden="true">▾</span>
+              </summary>
               <nav className="protected-account-dropdown" aria-label="Account">
-                <Link href="/my-account" aria-current={pathname === "/my-account" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>My Account</Link>
-                <Link href="/apply-loan" aria-current={pathname === "/apply-loan" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Apply Loan</Link>
+                <Link
+                  href="/my-account"
+                  aria-current={pathname === "/my-account" ? "page" : undefined}
+                  onClick={() => {
+                    if (accountMenu.current) accountMenu.current.open = false;
+                  }}
+                >
+                  My Account
+                </Link>
+                <Link
+                  href="/apply-loan"
+                  aria-current={pathname === "/apply-loan" ? "page" : undefined}
+                  onClick={() => {
+                    if (accountMenu.current) accountMenu.current.open = false;
+                  }}
+                >
+                  Apply Loan
+                </Link>
                 <hr className="protected-account-separator" />
-                <h2 className="protected-account-heading">Group Account Status</h2>
-                <Link href="/chart-of-accounts" aria-current={pathname === "/chart-of-accounts" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Chart of Accounts</Link>
-                <Link href="/trial-balance" aria-current={pathname === "/trial-balance" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Trial Balance</Link>
-                <Link href="/balance-sheet" aria-current={pathname === "/balance-sheet" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Balance Sheet</Link>
-                <Link href="/income-statement" aria-current={pathname === "/income-statement" ? "page" : undefined} onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Income Statement</Link>
+                <h2 className="protected-account-heading">
+                  Group Account Status
+                </h2>
+                <Link
+                  href="/chart-of-accounts"
+                  aria-current={
+                    pathname === "/chart-of-accounts" ? "page" : undefined
+                  }
+                  onClick={() => {
+                    if (accountMenu.current) accountMenu.current.open = false;
+                  }}
+                >
+                  Chart of Accounts
+                </Link>
+                <Link
+                  href="/trial-balance"
+                  aria-current={
+                    pathname === "/trial-balance" ? "page" : undefined
+                  }
+                  onClick={() => {
+                    if (accountMenu.current) accountMenu.current.open = false;
+                  }}
+                >
+                  Trial Balance
+                </Link>
+                <Link
+                  href="/balance-sheet"
+                  aria-current={
+                    pathname === "/balance-sheet" ? "page" : undefined
+                  }
+                  onClick={() => {
+                    if (accountMenu.current) accountMenu.current.open = false;
+                  }}
+                >
+                  Balance Sheet
+                </Link>
+                <Link
+                  href="/income-statement"
+                  aria-current={
+                    pathname === "/income-statement" ? "page" : undefined
+                  }
+                  onClick={() => {
+                    if (accountMenu.current) accountMenu.current.open = false;
+                  }}
+                >
+                  Income Statement
+                </Link>
                 <hr className="protected-account-separator" />
-                <Link href="/profile" onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}>Profile</Link>
-                <button type="button" onClick={() => setSession(null)}>Logout</button>
+                <Link
+                  href="/profile"
+                  onClick={() => {
+                    if (accountMenu.current) accountMenu.current.open = false;
+                  }}
+                >
+                  Profile
+                </Link>
+                <button type="button" onClick={() => setSession(null)}>
+                  Logout
+                </button>
               </nav>
             </details>
           )}
