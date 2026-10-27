@@ -6,7 +6,7 @@ import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { DraftCyclePanel } from "@/components/draft-cycle-panel";
 import { canManageCycles } from "@/lib/auth";
-import { activateCycle, createDraftCycle, saveDraftCycle } from "@/lib/cycles";
+import { activateCycle, createDraftCycle, distributeCycle, saveDraftCycle } from "@/lib/cycles";
 import { getCurrentCycle, interestTypes, type DraftDetails } from "@/lib/cycle-state";
 
 const states = {
@@ -18,7 +18,6 @@ const states = {
 
 function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; groupSlug: string }) {
   const { cycles, loading, error, refreshCycles } = useCycles();
-  const [previewDistributingId, setPreviewDistributingId] = useState<string | number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -28,7 +27,7 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
   const editButton = useRef<HTMLButtonElement>(null);
   const statusHeading = useRef<HTMLHeadingElement>(null);
 
-  const current = getCurrentCycle(cycles.map((cycle) => cycle.id === previewDistributingId ? { ...cycle, status: "DISTRIBUTING" } : cycle));
+  const current = getCurrentCycle(cycles);
   const state = current?.status ?? "none";
   const content = states[state];
   const details = current?.cycle.details;
@@ -61,7 +60,8 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
     statusHeading.current?.focus();
   }
 
-  function handleAction() {
+  async function handleAction() {
+    if (mutationPending.current) return;
     if (!current) {
       setShowForm(true);
       return;
@@ -71,9 +71,27 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
       return;
     }
     if (current.status === "distributing") return;
-    // Temporary UI state only; connect to the updated backend when available.
-    setPreviewDistributingId(current.cycle.id);
-    setNotice("Cycle changed to distributing for this preview.");
+    mutationPending.current = true;
+    setSaving(true);
+    setSaveError("");
+    setNotice("");
+    try {
+      await distributeCycle(accessToken, groupSlug, current.cycle.id);
+    } catch (cause) {
+      setSaveError(cause instanceof Error ? cause.message : "Unable to update the cycle. Please try again.");
+      setSaving(false);
+      mutationPending.current = false;
+      return;
+    }
+    setNotice("Cycle is now distributing.");
+    try {
+      await refreshCycles();
+    } catch {
+      setSaveError("The cycle was updated, but could not be reloaded. Try again to load its latest details.");
+    } finally {
+      setSaving(false);
+      mutationPending.current = false;
+    }
     statusHeading.current?.focus();
   }
 
@@ -107,7 +125,6 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
     <div className="members-feedback">
       <p role="alert">{error}</p>
       <button type="button" className="submit-button" onClick={() => {
-        setPreviewDistributingId(null);
         void refreshCycles().catch(() => {});
       }}>Try again</button>
     </div>
@@ -115,7 +132,6 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
 
   return (
     <>
-      <p className="cycle-preview-note">Changing a cycle to distributing is still a preview.</p>
       <p role="status" className="cycle-notice">{notice}</p>
       {!showForm && saveError && <p role="alert" className="members-feedback">{saveError}</p>}
       <section className={`cycle-status-card cycle-status-${state}`} aria-labelledby="cycle-status-title">

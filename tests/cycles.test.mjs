@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { activateCycle, canAddCycle, createCycle, createDraftCycle, fetchCycles, saveDraftCycle } from "../src/lib/cycles.ts";
+import { activateCycle, canAddCycle, createCycle, createDraftCycle, distributeCycle, fetchCycles, saveDraftCycle } from "../src/lib/cycles.ts";
 import { getCurrentCycle } from "../src/lib/cycle-state.ts";
 
 const payload = { interest_rate: "2.500000", interest_period: "MONTHLY", interest_method: "COMPOUND", cost_per_share: "100.00", status: "draft" };
@@ -155,6 +155,36 @@ test("draft creation posts form details instead of creating a temporary ID", asy
     return Response.json({ success: true });
   });
   await createDraftCycle("access", "cebu", draftDetails);
+});
+
+test("distribution PATCH sends only the status with authentication and community scope", async (t) => {
+  const result = {
+    success: true,
+    cycle: { id: "cycle/42", status: "distributing" },
+    summary: { cycle_id: "cycle/42", net_distribution: "900.00", members: [] },
+    distributions: [],
+    closing_transaction_ids: ["101"],
+    declared_at: "2026-10-28T08:00:00.000Z",
+    declared_by: "2",
+  };
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.ok(url.endsWith("/api/v1/cycles/cycle%2F42"));
+    assert.equal(options.method, "PATCH");
+    assert.equal(options.headers.Authorization, "Bearer access");
+    assert.equal(options.headers["x-group-slug"], "cebu");
+    assert.equal(options.headers["Content-Type"], "application/json");
+    assert.deepEqual(JSON.parse(options.body), { status: "distributing" });
+    return Response.json(result);
+  });
+  assert.deepEqual(await distributeCycle("access", "cebu", "cycle/42"), result);
+});
+
+test("distribution rejects HTTP and application errors", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch");
+  for (const status of [200, 409]) {
+    fetch.mock.mockImplementation(async () => Response.json({ success: false, error: "Cycle is no longer active." }, { status }));
+    await assert.rejects(distributeCycle("access", "cebu", 42), /no longer active/);
+  }
 });
 
 test("failed draft updates and activation surface backend errors", async (t) => {

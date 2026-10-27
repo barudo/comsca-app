@@ -65,6 +65,10 @@ export async function activateCycle(accessToken: string, groupSlug: string, id: 
   return cycleRequest(accessToken, groupSlug, { method: "PUT", body: JSON.stringify({ status: "active" }) }, id);
 }
 
+export async function distributeCycle(accessToken: string, groupSlug: string, id: Cycle["id"]) {
+  return cycleRequest(accessToken, groupSlug, { method: "PATCH", body: JSON.stringify({ status: "distributing" }) }, id);
+}
+
 export async function fetchCycles(accessToken: string, groupSlug: string, signal?: AbortSignal): Promise<Cycle[]> {
   const body = await cycleRequest(accessToken, groupSlug, { method: "GET", signal });
   if (!Array.isArray(body.cycles)) throw new Error("Unable to read cycles.");
