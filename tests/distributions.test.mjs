@@ -48,3 +48,30 @@ test("distributions guard authentication and surface API errors", async (t) => {
   assert.equal(fetch.mock.callCount(), 0);
   await assert.rejects(fetchDistributions("access", "cebu", "1"), /Access denied/);
 });
+
+test("distribution names match summary members by user ID rather than list order", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({
+    ...body,
+    summary: { ...body.summary, members: [
+      { user_id: "2", user: { first_name: "Ronald", family_name: "Gamutin Jr." } },
+      { user_id: 5, user: { first_name: " Jillian Marie ", family_name: " Villocido " } },
+    ] },
+    distributions: [row, { ...row, id: "2", user_id: "2" }],
+  }));
+  const data = await fetchDistributions("access", "cebu", "cycle/1");
+  assert.deepEqual(data.distributions.map((row) => row.fullName), ["Jillian Marie Villocido", "Ronald Gamutin Jr."]);
+});
+
+test("distribution names handle partial and unavailable user names", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch");
+  for (const [user, expected] of [
+    [null, "Member 5"], [{ first_name: " ", family_name: null }, "Member 5"],
+    [{ first_name: "Felix", family_name: null }, "Felix"],
+    [{ first_name: null, family_name: "Pinlac" }, "Pinlac"],
+  ]) {
+    fetch.mock.mockImplementation(async () => Response.json({ ...body, summary: { ...body.summary, members: [{ user_id: "5", user }] } }));
+    assert.equal((await fetchDistributions("access", "cebu", "cycle/1")).distributions[0].fullName, expected);
+  }
+  fetch.mock.mockImplementation(async () => Response.json(body));
+  assert.equal((await fetchDistributions("access", "cebu", "cycle/1")).distributions[0].fullName, "Member 5");
+});

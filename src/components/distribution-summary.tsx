@@ -17,7 +17,7 @@ export function DistributionSummary({ accessToken, groupSlug, cycleId }: { acces
     });
     return () => controller.abort();
   }, [accessToken, groupSlug, cycleId, attempt]);
-  const columns = Object.keys(distributionAmounts) as (keyof typeof distributionAmounts)[];
+  const amountKeys = Object.keys(distributionAmounts) as (keyof typeof distributionAmounts)[];
   return <section aria-labelledby="distribution-heading">
     <h2 id="distribution-heading">Distribution</h2>
     {error ? <div><p role="alert">{error}</p><button type="button" className="text-button" onClick={() => { setError(""); setResult(null); setAttempt((value) => value + 1); }}>Retry distributions</button></div>
@@ -26,12 +26,22 @@ export function DistributionSummary({ accessToken, groupSlug, cycleId }: { acces
         <dl className="cycle-details">{(Object.keys(distributionTotals) as (keyof typeof distributionTotals)[]).map((key) =>
           <div key={key}><dt>{distributionTotals[key]}</dt><dd>{pesos.format(result.totals[key] / 100)}</dd></div>)}</dl>
         {result.warnings.length > 0 && <div role="status"><h3>Distribution warnings</h3><ul>{result.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></div>}
-        {result.distributions.length === 0 ? <p role="status">No distributions are available for this cycle.</p> : <div className="member-ledger-wrapper">
-          <table className="member-ledger trial-balance-table">
-            <caption>Member distributions</caption>
-            <thead><tr><th scope="col">Member ID</th>{columns.map((key) => <th scope="col" key={key} className="member-ledger-amount">{distributionAmounts[key]}</th>)}<th scope="col">Status</th></tr></thead>
-            <tbody>{result.distributions.map((row) => <tr key={row.id}><th scope="row">{row.userId}</th>{columns.map((key) => <td key={key} className="member-ledger-amount">{pesos.format(row.amounts[key] / 100)}</td>)}<td>{row.status}</td></tr>)}</tbody>
-          </table>
+        {result.distributions.length === 0 ? <p role="status">No distributions are available for this cycle.</p> : <div className="distribution-cards" aria-label="Member distributions">
+          {result.distributions.map((row) => <article className="distribution-card" key={row.id} aria-labelledby={`distribution-${row.id}`}>
+            <header className="distribution-card-header">
+              <h3 id={`distribution-${row.id}`}>{row.fullName}</h3>
+              <span className="distribution-card-status">{row.status}</span>
+            </header>
+            <dl className="distribution-card-amounts">
+              {amountKeys.map((key) => <div key={key} className={key === "net_amount" || key === "paid_amount" ? "distribution-card-total" : undefined}>
+                <dt>{distributionAmounts[key]}</dt>
+                <dd>{pesos.format(row.amounts[key] / 100)}</dd>
+              </div>)}
+            </dl>
+            <footer className="distribution-card-footer">
+              <button type="button" className="submit-button" disabled title="Payout is not available yet" aria-label={`Payout for ${row.fullName}`}>Payout</button>
+            </footer>
+          </article>)}
         </div>}
       </>}
   </section>;

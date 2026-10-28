@@ -14,7 +14,7 @@ export type Distributions = {
   totals: Totals;
   memberCount: number;
   warnings: string[];
-  distributions: { id: string; userId: string; status: string; amounts: Amounts }[];
+  distributions: { id: string; userId: string; fullName: string; status: string; amounts: Amounts }[];
 };
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Unable to read distributions.");
@@ -49,13 +49,25 @@ export async function fetchDistributions(accessToken: string, groupSlug: string,
   const summary = record(body.summary);
   if (id(cycle.id) !== cycleKey || id(summary.cycle_id) !== cycleKey || cycle.status !== "distributing" || summary.status !== "distributing") throw new Error("Distributions do not match the current distributing cycle. Please reload the page.");
   if (!Array.isArray(body.distributions) || !Array.isArray(summary.warnings) || summary.warnings.some((warning) => typeof warning !== "string") || typeof summary.member_count !== "number" || !Number.isSafeInteger(summary.member_count) || summary.member_count < 0) throw new Error("Unable to read distributions.");
+  const memberNames = new Map<string, string>();
+  if (Array.isArray(summary.members)) {
+    for (const value of summary.members) {
+      const member = record(value);
+      if (!member.user || typeof member.user !== "object" || Array.isArray(member.user)) continue;
+      const user = record(member.user);
+      const fullName = [user.first_name, user.family_name]
+        .filter((part): part is string => typeof part === "string")
+        .map((part) => part.trim()).filter(Boolean).join(" ");
+      if (fullName) memberNames.set(id(member.user_id), fullName);
+    }
+  }
   return {
     totals: amounts(summary, distributionTotals), memberCount: summary.member_count, warnings: summary.warnings,
     distributions: body.distributions.map((value) => {
       const row = record(value);
       if (id(row.cycle_id) !== cycleKey) throw new Error("Distributions do not match the current cycle.");
       if (typeof row.status !== "string" || !row.status.trim()) throw new Error("Unable to read distribution status.");
-      return { id: id(row.id), userId: id(row.user_id), status: row.status, amounts: amounts(row, distributionAmounts) };
+      return { id: id(row.id), userId: id(row.user_id), fullName: memberNames.get(id(row.user_id)) ?? `Member ${id(row.user_id)}`, status: row.status, amounts: amounts(row, distributionAmounts) };
     }),
   };
 }
