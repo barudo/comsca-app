@@ -51,7 +51,7 @@ export async function fetchTrialBalance(
     throw new Error("Unable to load the trial balance. Please try again.");
   }
   if ((typeof body.current_cycle_id !== "string" && typeof body.current_cycle_id !== "number") || String(body.current_cycle_id) !== String(cycleId)) {
-    throw new Error("The trial balance does not match the active cycle. Please reload the page.");
+    throw new Error("The trial balance does not match the current cycle. Please reload the page.");
   }
   if (!body.summary || typeof body.summary !== "object") throw new Error("Unable to read the trial balance.");
 

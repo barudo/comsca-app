@@ -51,7 +51,7 @@ export async function fetchChartOfAccounts(
     throw new Error("Unable to load the chart of accounts. Please try again.");
   }
   if ((typeof body.current_cycle_id !== "string" && typeof body.current_cycle_id !== "number") || String(body.current_cycle_id) !== String(cycleId)) {
-    throw new Error("The accounting data does not match the active cycle. Please reload the page.");
+    throw new Error("The accounting data does not match the current cycle. Please reload the page.");
   }
 
   const summaries = new Map<AccountType, AccountSummary>();

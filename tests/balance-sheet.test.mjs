@@ -51,7 +51,7 @@ test("balance sheet uses an authenticated group-scoped uncached request", async 
 test("balance sheet rejects wrong-cycle and malformed response values", async (t) => {
   const fetch = t.mock.method(globalThis, "fetch");
   fetch.mock.mockImplementation(async () => Response.json({ ...response, current_cycle_id: "21" }));
-  await assert.rejects(fetchBalanceSheet("access", "cebu", 20), /active cycle/);
+  await assert.rejects(fetchBalanceSheet("access", "cebu", 20), /current cycle/);
   for (const body of [
     { ...response, success: false },
     { ...response, assets: { ...response.assets, accounts: [{ ...response.assets.accounts[0], balance: "bad" }] } },

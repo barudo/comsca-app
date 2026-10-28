@@ -32,7 +32,7 @@ test("trial balance uses the authenticated community-scoped uncached request", a
 test("trial balance rejects wrong-cycle and malformed responses", async (t) => {
   const fetch = t.mock.method(globalThis, "fetch");
   fetch.mock.mockImplementation(async () => Response.json({ ...response, current_cycle_id: "21" }));
-  await assert.rejects(fetchTrialBalance("access", "cebu", 20), /active cycle/);
+  await assert.rejects(fetchTrialBalance("access", "cebu", 20), /current cycle/);
   for (const body of [
     { ...response, success: false },
     { ...response, accounts: [{ ...response.accounts[0], debit_balance: "invalid" }] },

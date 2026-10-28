@@ -69,7 +69,7 @@ export async function fetchIncomeStatement(
   const body = await response.json();
   if (!response.ok || body?.success !== true) throw new Error("Unable to load the income statement. Please try again.");
   if ((typeof body.current_cycle_id !== "string" && typeof body.current_cycle_id !== "number") || String(body.current_cycle_id) !== String(cycleId)) {
-    throw new Error("The income statement does not match the active cycle. Please reload the page.");
+    throw new Error("The income statement does not match the current cycle. Please reload the page.");
   }
 
   const totalIncomeCents = parseCents(body.total_income);

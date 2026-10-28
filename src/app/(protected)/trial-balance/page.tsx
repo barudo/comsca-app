@@ -15,12 +15,15 @@ function formatAmount(cents: number) {
 }
 
 export default function TrialBalancePage() {
-  const { activeCycle, loading, error, refreshCycles } = useCycles();
+  const { currentCycle, loading, error, refreshCycles } = useCycles();
+  const reportCycle = !loading && !error && (currentCycle?.status === "active" || currentCycle?.status === "distributing")
+    ? currentCycle.cycle
+    : null;
   const { group, subdomain } = useCommunity();
   const { session } = useAuth();
   const groupSlug = subdomain ?? "";
   const accessToken = session?.access_token;
-  const cycleId = activeCycle?.id;
+  const cycleId = reportCycle?.id;
   const [result, setResult] = useState<{ requestKey: string; trialBalance: TrialBalance } | null>(null);
   const [requestError, setRequestError] = useState<{ requestKey: string; message: string } | null>(null);
   const [retry, setRetry] = useState(0);
@@ -28,7 +31,7 @@ export default function TrialBalancePage() {
   const trialBalance = result?.requestKey === requestKey ? result.trialBalance : null;
   const trialBalanceError = requestError?.requestKey === requestKey ? requestError.message : "";
   const accountLoading = requestKey !== null && trialBalance === null && trialBalanceError === "";
-  const cycleLabel = activeCycle?.details?.name || (cycleId !== undefined ? `Cycle ${cycleId}` : "");
+  const cycleLabel = reportCycle?.details?.name || (cycleId !== undefined ? `Cycle ${cycleId}` : "");
 
   useEffect(() => {
     if (!accessToken || !groupSlug || cycleId === undefined || !requestKey) return;
@@ -59,9 +62,9 @@ export default function TrialBalancePage() {
       <h1>Trial Balance</h1>
       <p>Debit and credit balances for {group?.name || subdomain || "your community"}{cycleLabel ? ` · ${cycleLabel}` : ""}.</p>
       <ReportNavigation />
-      {loading && <p className="members-feedback" role="status">Loading active cycle…</p>}
+      {loading && <p className="members-feedback" role="status">Loading current cycle…</p>}
       {error && <p className="members-feedback" role="alert">{error} <button className="text-button" type="button" onClick={() => void refreshCycles()}>Try again</button></p>}
-      {!loading && !error && !activeCycle && <p className="members-feedback" role="status">An active cycle is required to view the trial balance.</p>}
+      {!loading && !error && !reportCycle && <p className="members-feedback" role="status">An active or distributing cycle is required to view the trial balance.</p>}
       {!groupSlug && <p className="members-feedback" role="status">Please sign in through your community’s URL to view the trial balance.</p>}
       {accountLoading && <p className="members-feedback" role="status">Loading trial balance…</p>}
       {trialBalanceError && <p className="members-feedback" role="alert">{trialBalanceError} <button className="text-button" type="button" onClick={() => setRetry((value) => value + 1)}>Try again</button></p>}

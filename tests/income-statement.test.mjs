@@ -47,7 +47,7 @@ test("income statement uses an authenticated community-scoped uncached request",
 test("income statement rejects wrong-cycle and malformed data", async (t) => {
   const fetch = t.mock.method(globalThis, "fetch");
   fetch.mock.mockImplementation(async () => Response.json({ ...response, current_cycle_id: "2" }));
-  await assert.rejects(fetchIncomeStatement("access", "cebu", 1), /active cycle/);
+  await assert.rejects(fetchIncomeStatement("access", "cebu", 1), /current cycle/);
   for (const body of [
     { ...response, success: false },
     { ...response, income: { ...response.income, accounts: [{ ...response.income.accounts[0], amount: "invalid" }] } },

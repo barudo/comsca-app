@@ -11,11 +11,14 @@ import { fetchChartOfAccounts, type AccountSummary } from "@/lib/chart-of-accoun
 const pesos = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
 export default function ChartOfAccountsPage() {
-  const { activeCycle, loading, error, refreshCycles } = useCycles();
+  const { currentCycle, loading, error, refreshCycles } = useCycles();
+  const reportCycle = !loading && !error && (currentCycle?.status === "active" || currentCycle?.status === "distributing")
+    ? currentCycle.cycle
+    : null;
   const { group, subdomain } = useCommunity();
   const { session } = useAuth();
   const groupSlug = subdomain ?? "";
-  const cycleId = activeCycle?.id;
+  const cycleId = reportCycle?.id;
   const accessToken = session?.access_token;
   const [result, setResult] = useState<{ requestKey: string; accounts: AccountSummary[] } | null>(null);
   const [requestError, setRequestError] = useState<{ requestKey: string; message: string } | null>(null);
@@ -24,7 +27,7 @@ export default function ChartOfAccountsPage() {
   const summary = result?.requestKey === requestKey ? result.accounts : null;
   const accountsError = requestError?.requestKey === requestKey ? requestError.message : "";
   const accountsLoading = requestKey !== null && summary === null && accountsError === "";
-  const cycleLabel = activeCycle?.details?.name || (cycleId !== undefined ? `Cycle ${cycleId}` : "");
+  const cycleLabel = reportCycle?.details?.name || (cycleId !== undefined ? `Cycle ${cycleId}` : "");
 
   useEffect(() => {
     if (!accessToken || !groupSlug || cycleId === undefined || !requestKey) return;
@@ -50,9 +53,9 @@ export default function ChartOfAccountsPage() {
       <h1>Chart of Accounts</h1>
       <p>Account balances for {group?.name || subdomain || "your community"}{cycleLabel ? ` · ${cycleLabel}` : ""}.</p>
       <ReportNavigation />
-      {loading && <p className="members-feedback" role="status">Loading active cycle…</p>}
+      {loading && <p className="members-feedback" role="status">Loading current cycle…</p>}
       {error && <p className="members-feedback" role="alert">{error} <button className="text-button" type="button" onClick={() => void refreshCycles()}>Try again</button></p>}
-      {!loading && !error && !activeCycle && <p className="members-feedback" role="status">An active cycle is required to view the chart of accounts.</p>}
+      {!loading && !error && !reportCycle && <p className="members-feedback" role="status">An active or distributing cycle is required to view the chart of accounts.</p>}
       {!groupSlug && <p className="members-feedback" role="status">Please sign in through your community’s URL to view account balances.</p>}
       {accountsLoading && <p className="members-feedback" role="status">Loading account balances…</p>}
       {accountsError && <p className="members-feedback" role="alert">{accountsError} <button className="text-button" type="button" onClick={() => setRetry((value) => value + 1)}>Try again</button></p>}

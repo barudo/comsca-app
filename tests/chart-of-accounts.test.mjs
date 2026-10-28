@@ -57,7 +57,7 @@ test("parent totals are calculated from the returned sub-account balances", asyn
 test("accounting responses must match the active cycle and contain readable balances", async (t) => {
   const fetch = t.mock.method(globalThis, "fetch");
   fetch.mock.mockImplementation(async () => Response.json({ ...response, current_cycle_id: "21" }));
-  await assert.rejects(fetchChartOfAccounts("access", "cebu", 20), /active cycle/);
+  await assert.rejects(fetchChartOfAccounts("access", "cebu", 20), /current cycle/);
   for (const body of [
     { ...response, success: false },
     { ...response, accounts: [{ ...response.accounts[0], sub_accounts: [{ ...response.accounts[0].sub_accounts[0], current_balance: "invalid" }] }] },

@@ -11,12 +11,15 @@ import { fetchIncomeStatement, type IncomeStatement, type IncomeStatementSection
 const pesos = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
 export default function IncomeStatementPage() {
-  const { activeCycle, loading, error, refreshCycles } = useCycles();
+  const { currentCycle, loading, error, refreshCycles } = useCycles();
+  const reportCycle = !loading && !error && (currentCycle?.status === "active" || currentCycle?.status === "distributing")
+    ? currentCycle.cycle
+    : null;
   const { group, subdomain } = useCommunity();
   const { session } = useAuth();
   const groupSlug = subdomain ?? "";
   const accessToken = session?.access_token;
-  const cycleId = activeCycle?.id;
+  const cycleId = reportCycle?.id;
   const [result, setResult] = useState<{ requestKey: string; statement: IncomeStatement } | null>(null);
   const [requestError, setRequestError] = useState<{ requestKey: string; message: string } | null>(null);
   const [retry, setRetry] = useState(0);
@@ -24,7 +27,7 @@ export default function IncomeStatementPage() {
   const statement = result?.requestKey === requestKey ? result.statement : null;
   const statementError = requestError?.requestKey === requestKey ? requestError.message : "";
   const accountLoading = requestKey !== null && statement === null && statementError === "";
-  const cycleLabel = activeCycle?.details?.name || (cycleId !== undefined ? `Cycle ${cycleId}` : "");
+  const cycleLabel = reportCycle?.details?.name || (cycleId !== undefined ? `Cycle ${cycleId}` : "");
 
   useEffect(() => {
     if (!accessToken || !groupSlug || cycleId === undefined || !requestKey) return;
@@ -50,9 +53,9 @@ export default function IncomeStatementPage() {
       <h1>Income Statement</h1>
       <p>Income and expenses for {group?.name || subdomain || "your community"}{cycleLabel ? ` · ${cycleLabel}` : ""}.</p>
       <ReportNavigation />
-      {loading && <p className="members-feedback" role="status">Loading active cycle…</p>}
+      {loading && <p className="members-feedback" role="status">Loading current cycle…</p>}
       {error && <p className="members-feedback" role="alert">{error} <button className="text-button" type="button" onClick={() => void refreshCycles()}>Try again</button></p>}
-      {!loading && !error && !activeCycle && <p className="members-feedback" role="status">An active cycle is required to view the income statement.</p>}
+      {!loading && !error && !reportCycle && <p className="members-feedback" role="status">An active or distributing cycle is required to view the income statement.</p>}
       {!groupSlug && <p className="members-feedback" role="status">Please sign in through your community’s URL to view the income statement.</p>}
       {accountLoading && <p className="members-feedback" role="status">Loading income statement…</p>}
       {statementError && <p className="members-feedback" role="alert">{statementError} <button className="text-button" type="button" onClick={() => setRetry((value) => value + 1)}>Try again</button></p>}
