@@ -27,7 +27,10 @@ const businessLinks = [
 ];
 
 export function ProtectedNavigation() {
-  const { activeCycle } = useCycles();
+  const { activeCycle, currentCycle, loading, error } = useCycles();
+  const visibleBusinessLinks = !loading && !error && currentCycle?.status === "distributing"
+    ? [{ href: "/payout", label: "Payout" }]
+    : activeCycle ? businessLinks : [];
   const pathname = usePathname();
   const { group } = useCommunity();
   const { user, setSession } = useAuth();
@@ -45,7 +48,7 @@ export function ProtectedNavigation() {
   );
   const accountMenu = useRef<HTMLDetailsElement>(null);
   const businessMenu = useRef<HTMLDetailsElement>(null);
-  const businessActive = businessLinks.some(({ href }) => isActive(href));
+  const businessActive = visibleBusinessLinks.some(({ href }) => isActive(href));
 
   useEffect(() => {
     function closeOnOutsideClick(event: PointerEvent) {
@@ -73,7 +76,7 @@ export function ProtectedNavigation() {
           >
             Dashboard
           </Link>
-          {canViewBusiness(user) && activeCycle && (
+          {canViewBusiness(user) && visibleBusinessLinks.length > 0 && (
             <details
               key={`business:${pathname}`}
               className="protected-account-menu protected-administration-menu"
@@ -93,7 +96,7 @@ export function ProtectedNavigation() {
                 Business<span aria-hidden="true">▾</span>
               </summary>
               <div className="protected-account-dropdown">
-                {businessLinks.map(({ href, label }) => (
+                {visibleBusinessLinks.map(({ href, label }) => (
                   <Link
                     key={href}
                     href={href}

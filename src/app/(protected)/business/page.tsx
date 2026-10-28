@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useCycles } from "@/components/cycle-provider";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
@@ -1359,7 +1360,7 @@ function BusinessMembers({
 }
 
 export default function BusinessPage() {
-  const { activeCycle, loading, error, refreshCycles } = useCycles();
+  const { activeCycle, currentCycle, loading, error, refreshCycles } = useCycles();
   const { user, session } = useAuth();
   const { revision } = useMembers();
   const { subdomain, group } = useCommunity();
@@ -1394,6 +1395,14 @@ export default function BusinessPage() {
         >
           Try again
         </button>
+      </main>
+    );
+  if (currentCycle?.status === "distributing")
+    return (
+      <main className="protected-content">
+        <h1>Business</h1>
+        <p>Your current cycle is distributing. View member payouts for this cycle.</p>
+        <Link className="submit-button" href="/payout">Payout</Link>
       </main>
     );
   if (!activeCycle)
