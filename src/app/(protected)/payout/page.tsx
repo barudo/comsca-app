@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { useCycles } from "@/components/cycle-provider";
+import { DistributionSummary } from "@/components/distribution-summary";
 import { canViewBusiness } from "@/lib/auth";
 import { fetchPayouts, type Payout } from "@/lib/payouts";
 
@@ -63,6 +64,8 @@ export default function PayoutPage() {
       : !session || !subdomain ? <p role="status">Please sign in through your community’s URL to view payouts.</p>
       : <>
         <p>Payouts for {group?.name || subdomain} · {cycle.details?.name || `Cycle ${cycle.id}`}.</p>
+        <DistributionSummary key={`${session.access_token}:${subdomain}:${cycle.id}`} accessToken={session.access_token} groupSlug={subdomain} cycleId={cycle.id} />
+        <h2>Payment history</h2>
         <PayoutList key={`${session.access_token}:${subdomain}:${cycle.id}`} accessToken={session.access_token} groupSlug={subdomain} cycleId={cycle.id} />
       </>}
   </main>;
