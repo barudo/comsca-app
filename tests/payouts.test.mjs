@@ -57,12 +57,12 @@ test("payout requests respect cancellation", async (t) => {
   await assert.rejects(fetchPayouts("access", "cebu", "1", controller.signal), { name: "AbortError" });
 });
 
-test("payout submission uses the singular cycle endpoint and preserves the retry key", async (t) => {
+test("payout submission uses the cycles endpoint and preserves the retry key", async (t) => {
   const { postPayout } = await import("../src/lib/payouts.ts");
   const payment = { user_id: "5", credit: "12", amount: "250.00", idempotency_key: "cycle-1-member-5-payment-1" };
   const requests = [];
   t.mock.method(globalThis, "fetch", async (url, options) => {
-    assert.ok(url.endsWith("/api/v1/cycle/cycle%2F1/payouts"));
+    assert.ok(url.endsWith("/api/v1/cycles/cycle%2F1/payouts"));
     assert.equal(options.method, "POST");
     assert.equal(options.headers.Authorization, "Bearer access");
     assert.equal(options.headers["x-group-slug"], "cebu");

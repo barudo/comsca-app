@@ -74,7 +74,7 @@ export async function postPayout(accessToken: string, groupSlug: string, cycleId
     throw new Error("Select a credit account and enter a valid positive payout amount.");
   }
   const base = (process.env.NEXT_PUBLIC_API_URL || "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
-  const response = await fetch(`${base}/cycle/${encodeURIComponent(String(cycleId))}/payouts`, {
+  const response = await fetch(`${base}/cycles/${encodeURIComponent(String(cycleId))}/payouts`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "x-group-slug": groupSlug, "Content-Type": "application/json" },
     body: JSON.stringify(payment), signal: AbortSignal.timeout(15000),
