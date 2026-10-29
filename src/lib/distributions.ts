@@ -71,3 +71,35 @@ export async function fetchDistributions(accessToken: string, groupSlug: string,
     }),
   };
 }
+
+export type MyPayout = {
+  fullName: string;
+  status: string;
+  amounts: Amounts;
+  remainingCents: number;
+};
+
+export async function fetchMyPayout(accessToken: string, groupSlug: string, cycleId: string | number, signal?: AbortSignal): Promise<MyPayout | null> {
+  if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
+  const cycleKey = id(cycleId);
+  const base = (process.env.NEXT_PUBLIC_API_URL || "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
+  const response = await fetch(`${base}/me/payouts`, {
+    method: "GET", headers: { Authorization: `Bearer ${accessToken}`, "x-group-slug": groupSlug }, cache: "no-store",
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
+  });
+  const body = record(await response.json());
+  if (!response.ok || body.success !== true) throw new Error(typeof body.error === "string" ? body.error : "Unable to load your payout. Please try again.");
+  const cycle = record(body.cycle);
+  if (id(cycle.id) !== cycleKey || cycle.status !== "distributing") throw new Error("Your payout does not match the current distributing cycle. Please reload the page.");
+  if (body.distribution === null) return null;
+  const distribution = record(body.distribution);
+  if (id(distribution.cycle_id) !== cycleKey) throw new Error("Your payout does not match the current cycle.");
+  if (typeof distribution.status !== "string" || !distribution.status.trim()) throw new Error("Unable to read your payout status.");
+  const user = distribution.user == null ? {} : record(distribution.user);
+  const fullName = [user.first_name, user.family_name].filter((part): part is string => typeof part === "string").map((part) => part.trim()).filter(Boolean).join(" ");
+  return {
+    fullName: fullName || "Your distribution", status: distribution.status,
+    amounts: amounts(distribution, distributionAmounts),
+    remainingCents: amounts(distribution, { remaining_amount: "Remaining" }).remaining_amount,
+  };
+}

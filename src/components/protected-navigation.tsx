@@ -192,6 +192,15 @@ export function ProtectedNavigation() {
                 >
                   My Account
                 </Link>
+                {!loading && !error && currentCycle?.status === "distributing" && (
+                  <Link
+                    href="/my-payout"
+                    aria-current={pathname === "/my-payout" ? "page" : undefined}
+                    onClick={() => { if (accountMenu.current) accountMenu.current.open = false; }}
+                  >
+                    My Payout
+                  </Link>
+                )}
                 <Link
                   href="/apply-loan"
                   aria-current={pathname === "/apply-loan" ? "page" : undefined}
