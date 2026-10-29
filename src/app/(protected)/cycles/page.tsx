@@ -6,14 +6,14 @@ import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { DraftCyclePanel } from "@/components/draft-cycle-panel";
 import { canManageCycles } from "@/lib/auth";
-import { activateCycle, createDraftCycle, distributeCycle, saveDraftCycle } from "@/lib/cycles";
+import { activateCycle, closeCycle, createDraftCycle, distributeCycle, saveDraftCycle } from "@/lib/cycles";
 import { getCurrentCycle, interestTypes, type DraftDetails } from "@/lib/cycle-state";
 
 const states = {
   none: { title: "No cycle", description: "Start a new savings cycle by setting up a draft for your community.", action: "Add a Draft Cycle" },
   draft: { title: "Draft cycle", description: "Your draft is ready. Activate it when your community is ready to start saving.", action: "Make Active" },
   active: { title: "Active cycle", description: "Your community is in its savings phase. When ready, move this cycle to distribution.", action: "Change to Distributing" },
-  distributing: { title: "Currently distributing", description: "This cycle is in its distribution phase. A new draft can be added once distribution is complete.", action: null },
+  distributing: { title: "Currently distributing", description: "This cycle is in its distribution phase. A new draft can be added once distribution is complete.", action: "Mark as Complete" },
 };
 
 function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; groupSlug: string }) {
@@ -70,20 +70,21 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
       void persistDraft();
       return;
     }
-    if (current.status === "distributing") return;
+    const closing = current.status === "distributing";
     mutationPending.current = true;
     setSaving(true);
     setSaveError("");
     setNotice("");
     try {
-      await distributeCycle(accessToken, groupSlug, current.cycle.id);
+      if (closing) await closeCycle(accessToken, groupSlug, current.cycle.id);
+      else await distributeCycle(accessToken, groupSlug, current.cycle.id);
     } catch (cause) {
       setSaveError(cause instanceof Error ? cause.message : "Unable to update the cycle. Please try again.");
       setSaving(false);
       mutationPending.current = false;
       return;
     }
-    setNotice("Cycle is now distributing.");
+    setNotice(closing ? "Cycle completed and closed." : "Cycle is now distributing.");
     try {
       await refreshCycles();
     } catch {

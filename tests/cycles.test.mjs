@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { activateCycle, canAddCycle, createCycle, createDraftCycle, distributeCycle, fetchCycles, saveDraftCycle } from "../src/lib/cycles.ts";
+import { activateCycle, closeCycle, canAddCycle, createCycle, createDraftCycle, distributeCycle, fetchCycles, saveDraftCycle } from "../src/lib/cycles.ts";
 import { getCurrentCycle } from "../src/lib/cycle-state.ts";
 
 const payload = { interest_rate: "2.500000", interest_period: "MONTHLY", interest_method: "COMPOUND", cost_per_share: "100.00", status: "draft" };
@@ -191,4 +191,28 @@ test("failed draft updates and activation surface backend errors", async (t) => 
   t.mock.method(globalThis, "fetch", async () => Response.json({ success: false, error: "Cycle is no longer a draft." }, { status: 409 }));
   await assert.rejects(saveDraftCycle("access", "cebu", 42, draftDetails), /no longer a draft/);
   await assert.rejects(activateCycle("access", "cebu", 42), /no longer a draft/);
+});
+
+
+test("cycle completion PATCH sends only closed status with community authentication", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.ok(url.endsWith("/api/v1/cycles/cycle%2F42"));
+    assert.equal(options.method, "PATCH");
+    assert.equal(options.headers.Authorization, "Bearer access");
+    assert.equal(options.headers["x-group-slug"], "cebu");
+    assert.equal(options.headers["Content-Type"], "application/json");
+    assert.deepEqual(JSON.parse(options.body), { status: "closed" });
+    return Response.json({ success: true, cycle: { id: "cycle/42", status: "closed" } });
+  });
+  const result = await closeCycle("access", "cebu", "cycle/42");
+  assert.equal(result.cycle.status, "closed");
+  assert.equal(getCurrentCycle([result.cycle]), null);
+});
+
+test("cycle completion surfaces backend errors", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch");
+  for (const status of [200, 409]) {
+    fetch.mock.mockImplementation(async () => Response.json({ success: false, error: "Payouts are incomplete." }, { status }));
+    await assert.rejects(closeCycle("access", "cebu", 42), /Payouts are incomplete/);
+  }
 });

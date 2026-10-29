@@ -130,3 +130,7 @@ export async function createCycle(accessToken: string, groupSlug: string, payloa
   if (!canAddCycle(cycles)) throw new Error("An active cycle already exists. Close it before adding another cycle.");
   return cycleRequest(accessToken, groupSlug, { method: "POST", body: JSON.stringify(payload) });
 }
+
+export async function closeCycle(accessToken: string, groupSlug: string, id: Cycle["id"]) {
+  return cycleRequest(accessToken, groupSlug, { method: "PATCH", body: JSON.stringify({ status: "closed" }) }, id);
+}
