@@ -64,3 +64,22 @@ export async function fetchPayouts(accessToken: string, groupSlug: string, cycle
     };
   });
 }
+
+export type PayoutInput = { user_id: string; credit: string; amount: string; idempotency_key: string };
+
+export async function postPayout(accessToken: string, groupSlug: string, cycleId: string | number, payment: PayoutInput) {
+  if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
+  if (!String(cycleId).trim() || !payment.user_id.trim() || !payment.credit.trim() || !payment.idempotency_key.trim() ||
+    !/^\d+\.\d{2}$/.test(payment.amount) || Number(payment.amount) <= 0 || !Number.isSafeInteger(Math.round(Number(payment.amount) * 100))) {
+    throw new Error("Select a credit account and enter a valid positive payout amount.");
+  }
+  const base = (process.env.NEXT_PUBLIC_API_URL || "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
+  const response = await fetch(`${base}/cycle/${encodeURIComponent(String(cycleId))}/payouts`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "x-group-slug": groupSlug, "Content-Type": "application/json" },
+    body: JSON.stringify(payment), signal: AbortSignal.timeout(15000),
+  });
+  const body = await response.json();
+  if (!response.ok || body?.success !== true) throw new Error(typeof body?.error === "string" ? body.error : "Unable to confirm payout. Retry this payment to check its status.");
+  return body;
+}

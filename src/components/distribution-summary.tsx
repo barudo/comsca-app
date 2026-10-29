@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import { fetchDistributions, distributionAmounts, distributionTotals, type Distributions } from "@/lib/distributions";
 
+import { PayoutDrawer } from "@/components/payout-drawer";
+
 const pesos = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
-export function DistributionSummary({ accessToken, groupSlug, cycleId }: { accessToken: string; groupSlug: string; cycleId: string | number }) {
+export function DistributionSummary({ accessToken, groupSlug, cycleId, onPaid }: { accessToken: string; groupSlug: string; cycleId: string | number; onPaid: () => void }) {
+  const [selection, setSelection] = useState<{ member: Distributions["distributions"][number]; trigger: HTMLButtonElement } | null>(null);
   const [result, setResult] = useState<Distributions | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -39,10 +42,11 @@ export function DistributionSummary({ accessToken, groupSlug, cycleId }: { acces
               </div>)}
             </dl>
             <footer className="distribution-card-footer">
-              <button type="button" className="submit-button" disabled title="Payout is not available yet" aria-label={`Payout for ${row.fullName}`}>Payout</button>
+              <button type="button" className="submit-button" disabled={row.amounts.paid_amount >= row.amounts.net_amount} onClick={(event) => setSelection({ member: row, trigger: event.currentTarget })} aria-label={`Payout for ${row.fullName}`}>Payout</button>
             </footer>
           </article>)}
         </div>}
       </>}
+    {selection && <PayoutDrawer {...selection} accessToken={accessToken} groupSlug={groupSlug} cycleId={cycleId} onClose={() => setSelection(null)} onPaid={() => { setSelection(null); setResult(null); setError(""); setAttempt((value) => value + 1); onPaid(); }} />}
   </section>;
 }

@@ -56,3 +56,34 @@ test("payout requests respect cancellation", async (t) => {
   });
   await assert.rejects(fetchPayouts("access", "cebu", "1", controller.signal), { name: "AbortError" });
 });
+
+test("payout submission uses the singular cycle endpoint and preserves the retry key", async (t) => {
+  const { postPayout } = await import("../src/lib/payouts.ts");
+  const payment = { user_id: "5", credit: "12", amount: "250.00", idempotency_key: "cycle-1-member-5-payment-1" };
+  const requests = [];
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.ok(url.endsWith("/api/v1/cycle/cycle%2F1/payouts"));
+    assert.equal(options.method, "POST");
+    assert.equal(options.headers.Authorization, "Bearer access");
+    assert.equal(options.headers["x-group-slug"], "cebu");
+    assert.equal(options.headers["Content-Type"], "application/json");
+    requests.push(JSON.parse(options.body));
+    if (requests.length === 1) throw new Error("Network failure");
+    return Response.json({ success: true });
+  });
+  await assert.rejects(postPayout("access", "cebu", "cycle/1", payment));
+  await postPayout("access", "cebu", "cycle/1", payment);
+  assert.deepEqual(requests, [payment, payment]);
+});
+
+test("payout submission rejects invalid input before fetching and surfaces server errors", async (t) => {
+  const { postPayout } = await import("../src/lib/payouts.ts");
+  const payment = { user_id: "5", credit: "12", amount: "250.00", idempotency_key: "payment-1" };
+  const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({ success: false, error: "Insufficient cash" }, { status: 409 }));
+  for (const fields of [{ amount: "0.00" }, { amount: "-1.00" }, { amount: "1.001" }, { credit: "" }, { idempotency_key: "" }]) {
+    await assert.rejects(postPayout("access", "cebu", "1", { ...payment, ...fields }));
+  }
+  await assert.rejects(postPayout("", "cebu", "1", payment));
+  assert.equal(fetch.mock.callCount(), 0);
+  await assert.rejects(postPayout("access", "cebu", "1", payment), /Insufficient cash/);
+});
