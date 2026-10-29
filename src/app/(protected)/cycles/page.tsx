@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useCycles } from "@/components/cycle-provider";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
+import { CompleteCyclePanel } from "@/components/complete-cycle-panel";
 import { DraftCyclePanel } from "@/components/draft-cycle-panel";
 import { canManageCycles } from "@/lib/auth";
 import { activateCycle, closeCycle, createDraftCycle, distributeCycle, saveDraftCycle } from "@/lib/cycles";
@@ -18,6 +19,7 @@ const states = {
 
 function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; groupSlug: string }) {
   const { cycles, loading, error, refreshCycles } = useCycles();
+  const [showCompleteConfirmation, setShowCompleteConfirmation] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -60,7 +62,7 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
     statusHeading.current?.focus();
   }
 
-  async function handleAction() {
+  async function handleAction(confirmCompletion = false) {
     if (mutationPending.current) return;
     if (!current) {
       setShowForm(true);
@@ -71,6 +73,12 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
       return;
     }
     const closing = current.status === "distributing";
+    if (confirmCompletion && !closing) return;
+    if (closing && !confirmCompletion) {
+      setSaveError("");
+      setShowCompleteConfirmation(true);
+      return;
+    }
     mutationPending.current = true;
     setSaving(true);
     setSaveError("");
@@ -84,6 +92,7 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
       mutationPending.current = false;
       return;
     }
+    setShowCompleteConfirmation(false);
     setNotice(closing ? "Cycle completed and closed." : "Cycle is now distributing.");
     try {
       await refreshCycles();
@@ -134,7 +143,7 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
   return (
     <>
       <p role="status" className="cycle-notice">{notice}</p>
-      {!showForm && saveError && <p role="alert" className="members-feedback">{saveError}</p>}
+      {!showForm && !showCompleteConfirmation && saveError && <p role="alert" className="members-feedback">{saveError}</p>}
       <section className={`cycle-status-card cycle-status-${state}`} aria-labelledby="cycle-status-title">
         <div className="cycle-status-topline">
           <span className="eyebrow">CURRENT CYCLE</span>
@@ -162,9 +171,10 @@ function CyclesWorkspace({ accessToken, groupSlug }: { accessToken: string; grou
         )}
         {content.action && <div className="cycle-actions">
           {current?.status === "draft" && <button ref={editButton} type="button" disabled={saving} className="submit-button cycle-primary-action" onClick={() => { setSaveError(""); setShowForm(true); }}>Edit Draft Cycle</button>}
-          <button ref={actionButton} type="button" disabled={saving} className="submit-button cycle-primary-action" onClick={handleAction}>{saving ? "Updating…" : content.action}</button>
+          <button ref={actionButton} type="button" disabled={saving} className="submit-button cycle-primary-action" onClick={() => void handleAction()}>{saving ? "Updating…" : content.action}</button>
         </div>}
       </section>
+      {showCompleteConfirmation && <CompleteCyclePanel saving={saving} error={saveError} returnFocus={actionButton} onClose={() => { if (!mutationPending.current) { setShowCompleteConfirmation(false); setSaveError(""); } }} onConfirm={() => void handleAction(true)} />}
       {showForm && <DraftCyclePanel onClose={() => setShowForm(false)} onCreate={addDraft} onSave={persistDraft} saving={saving} saveError={saveError} initialDetails={current?.status === "draft" ? details ?? {} : undefined} returnFocus={current?.status === "draft" ? editButton : actionButton} />}
     </>
   );
