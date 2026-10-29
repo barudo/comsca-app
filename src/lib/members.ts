@@ -63,7 +63,7 @@ export async function updateMember(accessToken: string, groupSlug: string, id: s
 export async function enableMemberLogin(accessToken: string, groupSlug: string, id: string | number, password: string) {
   if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
   const bytes = new TextEncoder().encode(password).length;
-  if (password.length < 8 || bytes > 72) throw new Error("Use at least 8 characters and no more than 72 UTF-8 bytes for the password.");
+  if (password !== "" && (password.length < 8 || bytes > 72)) throw new Error("Use at least 8 characters and no more than 72 UTF-8 bytes for the password.");
   const base = (process.env.NEXT_PUBLIC_API_URL ||
     "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
   const response = await fetch(`${base}/groups/users/${encodeURIComponent(String(id))}/account`, {

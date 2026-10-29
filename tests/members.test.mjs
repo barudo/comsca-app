@@ -231,3 +231,13 @@ test("cycle member balances reject stale cycles and malformed financial amounts"
   }));
   await assert.rejects(fetchCycleMembers("access", "cebu", 5), /Unable to load current cycle members/);
 });
+
+test("enabling login accepts an empty initial password", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    assert.ok(url.endsWith("/groups/users/42/account"));
+    assert.equal(options.method, "POST");
+    assert.deepEqual(JSON.parse(options.body), { password: "" });
+    return Response.json({ success: true });
+  });
+  await enableMemberLogin("access", "cebu", 42, "");
+});

@@ -42,11 +42,11 @@ export function MemberLoginPanel({ member, trigger, accessToken, groupSlug, onCl
       <div><span className="eyebrow">{member.name}</span><h2 id="member-login-title">Enable Login</h2></div>
       <button type="button" className="cycle-close" aria-label="Close enable login form" disabled={saving} onClick={onClose}>×</button>
     </div>
-    <p>Set an initial password for {member.phone}. Confirm this phone belongs to the member before enabling login.</p>
+    <p>You may set an initial password for {member.phone} or leave it empty. Confirm this phone belongs to the member before enabling login.</p>
     <form className="cycle-draft-form" onSubmit={submit}>
       <div className="field">
-        <label htmlFor="member-login-password">Initial password</label>
-        <input ref={passwordInput} id="member-login-password" name="password" type="password" autoComplete="new-password" required minLength={8} maxLength={72} />
+        <label htmlFor="member-login-password">Initial password (optional)</label>
+        <input ref={passwordInput} id="member-login-password" name="password" type="password" autoComplete="new-password" minLength={8} maxLength={72} />
       </div>
       {error && <p role="alert">{error}</p>}
       <div className="cycle-drawer-footer">
