@@ -16,6 +16,8 @@ import { amountToCents } from "@/lib/money";
 import { chargePenalty } from "@/lib/penalties";
 import { canViewBusiness } from "@/lib/auth";
 import { fetchCycleMembers, type CycleMember } from "@/lib/members";
+import { TransactionFrozenNotice } from "@/components/transaction-frozen-notice";
+import { isTransactionsFrozenError } from "@/lib/api-errors";
 
 const actions = [
   "Shares and Payments",
@@ -58,7 +60,8 @@ function ActionPanel({
   onClose: () => void;
   onMemberUpdated: (memberId: string | number) => Promise<CycleMember>;
 }) {
-  const { activeCycle } = useCycles();
+  const { activeCycle, currentCycle, refreshCycles } = useCycles();
+  const transactionsFrozen = currentCycle?.cycle.transactions_frozen === true;
   const { session } = useAuth();
   const { subdomain } = useCommunity();
   const [accounts, setAccounts] = useState<LedgerAccount[] | null>(null);
@@ -316,6 +319,7 @@ function ActionPanel({
     event.preventDefault();
     if (
       checkoutInFlight.current ||
+      transactionsFrozen ||
       !accessToken ||
       !subdomain ||
       selection.member.id === undefined
@@ -343,6 +347,7 @@ function ActionPanel({
       setCheckoutError(
         cause instanceof Error ? cause.message : "Unable to set loan desired.",
       );
+      if (isTransactionsFrozenError(cause)) void refreshCycles().catch(() => {});
     } finally {
       checkoutInFlight.current = false;
       setCheckingOut(false);
@@ -351,7 +356,7 @@ function ActionPanel({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (checkoutInFlight.current) return;
+    if (checkoutInFlight.current || transactionsFrozen) return;
     setCheckoutError("");
     const value = isSharePurchase
       ? Number(sharesAmount)
@@ -398,6 +403,7 @@ function ActionPanel({
             ? cause.message
             : "Unable to disburse the loan.",
         );
+        if (isTransactionsFrozenError(cause)) void refreshCycles().catch(() => {});
       } finally {
         checkoutInFlight.current = false;
         setCheckingOut(false);
@@ -494,6 +500,7 @@ function ActionPanel({
             ? cause.message
             : "Unable to charge the penalty.",
         );
+        if (isTransactionsFrozenError(cause)) void refreshCycles().catch(() => {});
       } finally {
         checkoutInFlight.current = false;
         setCheckingOut(false);
@@ -506,7 +513,7 @@ function ActionPanel({
   }
 
   async function checkout() {
-    if (checkoutInFlight.current || !items.length) return;
+    if (checkoutInFlight.current || transactionsFrozen || !items.length) return;
     setCheckoutError("");
     setNotice("");
     if (
@@ -558,6 +565,7 @@ function ActionPanel({
       setCheckoutError(
         cause instanceof Error ? cause.message : "Unable to complete checkout.",
       );
+      if (isTransactionsFrozenError(cause)) void refreshCycles().catch(() => {});
     } finally {
       checkoutInFlight.current = false;
       setCheckingOut(false);
@@ -605,7 +613,7 @@ function ActionPanel({
       </p>
       <form id="set-loan-desired-form" onSubmit={handleSetLoanDesired} />
       <form className="cycle-draft-form" onSubmit={handleSubmit}>
-        <fieldset className="business-payment-fields" disabled={checkingOut}>
+        <fieldset className="business-payment-fields" disabled={checkingOut || transactionsFrozen}>
           {selection.action === "Shares and Payments" && (
             <div
               className="business-payment-options"
@@ -859,7 +867,7 @@ function ActionPanel({
                           type="submit"
                           form="set-loan-desired-form"
                           className="submit-button"
-                          disabled={selection.member.id === undefined}
+                          disabled={selection.member.id === undefined || transactionsFrozen}
                         >
                           {checkingOut ? "Saving…" : "Set Loan Desired"}
                         </button>
@@ -1029,6 +1037,7 @@ function ActionPanel({
               type="submit"
               className="submit-button"
               disabled={
+                transactionsFrozen ||
                 (isDisbursement && selection.member.id === undefined) ||
                 (isCheckout && isLoanPayment && remainingLoanAmount <= 0) ||
                 (isCheckout &&
@@ -1147,6 +1156,7 @@ function ActionPanel({
               className="submit-button"
               disabled={
                 checkingOut ||
+                transactionsFrozen ||
                 items.length === 0 ||
                 selection.member.id === undefined
               }
@@ -1178,6 +1188,8 @@ function BusinessMembers({
   communityName: string;
   requiredMonthlyContribution?: string;
 }) {
+  const { currentCycle } = useCycles();
+  const transactionsFrozen = currentCycle?.cycle.transactions_frozen === true;
   const [members, setMembers] = useState<CycleMember[] | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -1236,6 +1248,7 @@ function BusinessMembers({
         Shares, loan payments, loan disbursements, and penalties for members of{" "}
         {communityName}.
       </p>
+      <TransactionFrozenNotice cycle={currentCycle?.cycle} />
     </>
   );
 
@@ -1328,6 +1341,8 @@ function BusinessMembers({
                           key={action}
                           type="button"
                           aria-label={`${action} for ${member.name || "unnamed member"}`}
+                          disabled={transactionsFrozen}
+                          title={transactionsFrozen ? "Transactions are currently frozen." : undefined}
                           onClick={(event) =>
                             setSelection({
                               action,
@@ -1380,6 +1395,7 @@ export default function BusinessPage() {
     return (
       <main className="protected-content">
         <h1>Business</h1>
+        <TransactionFrozenNotice cycle={currentCycle?.cycle} />
         <p role="status">Loading current cycle…</p>
       </main>
     );
@@ -1387,6 +1403,7 @@ export default function BusinessPage() {
     return (
       <main className="protected-content">
         <h1>Business</h1>
+        <TransactionFrozenNotice cycle={currentCycle?.cycle} />
         <p role="alert">{error}</p>
         <button
           className="text-button"
@@ -1401,6 +1418,7 @@ export default function BusinessPage() {
     return (
       <main className="protected-content">
         <h1>Business</h1>
+        <TransactionFrozenNotice cycle={currentCycle.cycle} />
         <p>Your current cycle is distributing. View member payouts for this cycle.</p>
         <Link className="submit-button" href="/payout">Payout</Link>
       </main>
@@ -1409,6 +1427,7 @@ export default function BusinessPage() {
     return (
       <main className="protected-content">
         <h1>Business</h1>
+        <TransactionFrozenNotice cycle={currentCycle?.cycle} />
         <p role="status">
           Business is available when your community has an active cycle.
         </p>

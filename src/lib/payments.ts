@@ -1,3 +1,5 @@
+import { apiRequestError } from "./api-errors";
+
 export type PaymentEntry = {
   type: "LOAN_PAYMENT" | "BUY_SHARE" | "PENALTY_PAYMENT" | "PAY_CONTRIBUTION";
   debit: string;
@@ -26,6 +28,6 @@ export async function postPayments(accessToken: string, groupSlug: string, userI
   }
   const body = await response.json().catch(() => null);
   if (!response.ok || body?.success !== true) {
-    throw new Error(typeof body?.error === "string" ? body.error : "Payment status could not be confirmed. Check transaction records before trying again.");
+    throw apiRequestError(response, body, "Payment status could not be confirmed. Check transaction records before trying again.");
   }
 }

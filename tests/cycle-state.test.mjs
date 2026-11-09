@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getCurrentCycle } from "../src/lib/cycle-state.ts";
+import { canUnfreezeCycle, getCurrentCycle } from "../src/lib/cycle-state.ts";
 
 test("empty and completed history have no current cycle", () => {
   assert.equal(getCurrentCycle([]), null);
@@ -21,4 +21,14 @@ test("distribution and active savings take precedence over a draft regardless of
   assert.equal(getCurrentCycle([draft, active]).cycle.id, 2);
   assert.equal(getCurrentCycle([draft, active, distributing]).cycle.id, 3);
   assert.equal(getCurrentCycle([distributing, active, draft]).cycle.id, 3);
+});
+
+test("transactions cannot be unfrozen while a cycle is distributing or closed", () => {
+  for (const status of ["DISTRIBUTING", "CLOSED", " distributing "]) {
+    assert.equal(canUnfreezeCycle({ id: 1, status, transactions_frozen: true }), false);
+  }
+  for (const status of ["ACTIVE", "DRAFT"]) {
+    assert.equal(canUnfreezeCycle({ id: 1, status, transactions_frozen: true }), true);
+  }
+  assert.equal(canUnfreezeCycle(null), false);
 });

@@ -1,3 +1,5 @@
+import { apiRequestError } from "./api-errors";
+
 export type DonationEntry = {
   amount: string;
   description: string;
@@ -26,6 +28,6 @@ export async function postDonation(accessToken: string, groupSlug: string, donat
   }
   const body = await response.json().catch(() => null);
   if (!response.ok || body?.success !== true) {
-    throw new Error(typeof body?.error === "string" ? body.error : "Donation status could not be confirmed. Check transaction records before trying again.");
+    throw apiRequestError(response, body, "Donation status could not be confirmed. Check transaction records before trying again.");
   }
 }

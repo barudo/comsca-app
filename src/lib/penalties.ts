@@ -1,3 +1,5 @@
+import { apiRequestError } from "./api-errors";
+
 export type PenaltyCharge = {
   user_id: string;
   amount: string;
@@ -46,10 +48,6 @@ export async function chargePenalty(
   }
   const body = await response.json().catch(() => null);
   if (!response.ok || body?.success !== true) {
-    throw new Error(
-      typeof body?.error === "string"
-        ? body.error
-        : "Penalty charge status could not be confirmed. Check transaction records before trying again.",
-    );
+    throw apiRequestError(response, body, "Penalty charge status could not be confirmed. Check transaction records before trying again.");
   }
 }

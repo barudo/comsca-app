@@ -4,11 +4,14 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { useCycles } from "@/components/cycle-provider";
+import { TransactionFrozenNotice } from "@/components/transaction-frozen-notice";
 import { fetchCycleAccounts, type LedgerAccount } from "@/lib/accounts";
 import { postExpense } from "@/lib/expenses";
+import { isTransactionsFrozenError } from "@/lib/api-errors";
 
 export default function ExpensePage() {
-  const { activeCycle, loading: cycleLoading, error: cycleError, refreshCycles } = useCycles();
+  const { activeCycle, currentCycle, loading: cycleLoading, error: cycleError, refreshCycles } = useCycles();
+  const transactionsFrozen = currentCycle?.cycle.transactions_frozen === true;
   const { session } = useAuth();
   const { subdomain } = useCommunity();
   const accessToken = session?.access_token ?? "";
@@ -51,7 +54,7 @@ export default function ExpensePage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting || !accounts || cycleLoading || cycleError) return;
+    if (submitting || transactionsFrozen || !accounts || cycleLoading || cycleError) return;
     setSubmitting(true);
     setFeedback(null);
     try {
@@ -66,6 +69,7 @@ export default function ExpensePage() {
       setFeedback({ kind: "success", message: "Expense recorded." });
     } catch (cause) {
       setFeedback({ kind: "error", message: cause instanceof Error ? cause.message : "Unable to record the expense." });
+      if (isTransactionsFrozenError(cause)) void refreshCycles().catch(() => {});
     } finally {
       setSubmitting(false);
     }
@@ -78,6 +82,7 @@ export default function ExpensePage() {
     <main className="protected-content">
       <h1>Add Expense</h1>
       <p>Record an expense for your community.</p>
+      <TransactionFrozenNotice cycle={currentCycle?.cycle} />
       {cycleLoading && <p className="members-feedback" role="status">Loading active cycle…</p>}
       {cycleError && <p className="members-feedback" role="alert">{cycleError} <button className="text-button" type="button" onClick={() => void refreshCycles()}>Try again</button></p>}
       {!cycleLoading && !cycleError && !activeCycle && <p className="members-feedback" role="status">An active cycle is required to record a expense.</p>}
@@ -86,7 +91,7 @@ export default function ExpensePage() {
       {currentAccountsError && <p className="members-feedback" role="alert">{currentAccountsError} <button className="text-button" type="button" onClick={() => setRetry((value) => value + 1)}>Try again</button></p>}
       {accounts && (
         <form className="expense-form" onSubmit={handleSubmit}>
-          <fieldset disabled={submitting || cycleLoading || Boolean(cycleError)} aria-busy={submitting}>
+          <fieldset disabled={submitting || cycleLoading || Boolean(cycleError) || transactionsFrozen} aria-busy={submitting}>
             <div className="field">
               <label htmlFor="expense-amount">Amount</label>
               <input id="expense-amount" name="amount" type="number" min="0.01" step="0.01" required value={amount} onChange={(event) => setAmount(event.target.value)} />
@@ -112,7 +117,7 @@ export default function ExpensePage() {
               </div>
             </div>
             {feedback && <p className="members-feedback" role={feedback.kind === "error" ? "alert" : "status"}>{feedback.message}</p>}
-            <button className="submit-button" type="submit">{submitting ? "Recording…" : "Submit"}</button>
+            <button className="submit-button" type="submit" disabled={transactionsFrozen} title={transactionsFrozen ? "Transactions are currently frozen." : undefined}>{submitting ? "Recording…" : "Submit"}</button>
           </fieldset>
         </form>
       )}

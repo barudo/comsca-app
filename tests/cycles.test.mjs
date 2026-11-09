@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { activateCycle, closeCycle, canAddCycle, createCycle, createDraftCycle, distributeCycle, fetchCycles, saveDraftCycle } from "../src/lib/cycles.ts";
+import { activateCycle, closeCycle, canAddCycle, createCycle, createDraftCycle, distributeCycle, fetchCycles, freezeCycleTransactions, saveDraftCycle, unfreezeCycleTransactions } from "../src/lib/cycles.ts";
 import { getCurrentCycle } from "../src/lib/cycle-state.ts";
 
 const payload = { interest_rate: "2.500000", interest_period: "MONTHLY", interest_method: "COMPOUND", cost_per_share: "100.00", status: "draft" };
@@ -17,7 +17,7 @@ test("no matching current cycle produces the empty page state", async (t) => {
 test("the API-selected latest cycle drives each current cycle state", async (t) => {
   const fetch = t.mock.method(globalThis, "fetch");
   for (const status of ["draft", "distributing", "active"]) {
-    const cycle = { id: 42, status };
+    const cycle = { id: 42, status, transactions_frozen: false };
     fetch.mock.mockImplementation(async () => Response.json({
       success: true, cycles: [cycle], current_cycle_id: 42,
     }));
@@ -32,15 +32,53 @@ test("cycles load with authentication and community scope", async (t) => {
     assert.equal(options.headers.Authorization, "Bearer access");
     assert.equal(options.headers["x-group-slug"], "cebu");
     assert.equal(options.cache, "no-store");
-    return Response.json({ success: true, cycles: [{ id: "1", status: "ACTIVE" }] });
+    return Response.json({ success: true, cycles: [{ id: "1", status: "ACTIVE", transactions_frozen: true }] });
   });
-  assert.deepEqual(await fetchCycles("access", "cebu"), [{ id: "1", status: "ACTIVE" }]);
+  assert.deepEqual(await fetchCycles("access", "cebu"), [{ id: "1", status: "ACTIVE", transactions_frozen: true }]);
+});
+
+test("cycle freeze state must be a boolean", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({
+    success: true, cycles: [{ id: 1, status: "ACTIVE" }],
+  }));
+  await assert.rejects(fetchCycles("access", "cebu"), /Unable to read cycles/);
+});
+
+test("freeze and unfreeze PATCH the scoped cycle-specific actions", async (t) => {
+  const requests = [];
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    requests.push({ url, options });
+    return Response.json({ success: true });
+  });
+  await freezeCycleTransactions("access", "cebu", "cycle/42");
+  await unfreezeCycleTransactions("access", "cebu", "cycle/42");
+  assert.deepEqual(requests.map(({ url, options }) => [url, options.method]), [
+    ["https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1/cycles/cycle%2F42/freeze", "PATCH"],
+    ["https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1/cycles/cycle%2F42/unfreeze", "PATCH"],
+  ]);
+  for (const { options } of requests) {
+    assert.equal(options.headers["x-group-slug"], "cebu");
+    assert.equal(options.body, undefined);
+  }
+});
+
+test("freeze endpoint exposes nested backend errors and the HTTP status", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({
+    success: false,
+    error: { code: "TRANSACTIONS_FROZEN", message: "Transactions are currently frozen." },
+  }, { status: 423 }));
+  await assert.rejects(freezeCycleTransactions("access", "cebu", 42), (error) => {
+    assert.equal(error.message, "Transactions are currently frozen.");
+    assert.equal(error.status, 423);
+    assert.equal(error.code, "TRANSACTIONS_FROZEN");
+    return true;
+  });
 });
 
 test("cycle details retain API amounts and text for display and draft editing", async (t) => {
   t.mock.method(globalThis, "fetch", async () => Response.json({
     success: true, current_cycle_id: 9, cycles: [{
-      id: 9, status: "draft", name: "2026 to 2027", description: "Community savings",
+      id: 9, status: "draft", transactions_frozen: false, name: "2026 to 2027", description: "Community savings",
       interest_rate: "3.000000", interest_method: "SIMPLE", starting_subscription: "500.00",
       maximum_monthly_shares: 10, cost_per_share: "100.00", absence_penalty: 0,
       required_monthly_contribution: "25.50",
@@ -48,7 +86,7 @@ test("cycle details retain API amounts and text for display and draft editing", 
     }],
   }));
   assert.deepEqual(await fetchCycles("access", "cebu"), [{
-    id: 9, status: "draft", details: {
+    id: 9, status: "draft", transactions_frozen: false, details: {
       name: "2026 to 2027", description: "Community savings", interestRate: "3.000000",
       interestType: "simple", startingSubscription: "500.00", maximumMonthlyShares: 10,
       costPerShare: "100.00", absencePenalty: "0", requiredMonthlyContribution: "25.50",
@@ -59,16 +97,16 @@ test("cycle details retain API amounts and text for display and draft editing", 
 
 test("missing cycle amounts are not displayed as invented zero values", async (t) => {
   t.mock.method(globalThis, "fetch", async () => Response.json({
-    success: true, cycles: [{ id: 9, status: "draft", name: "Draft", cost_per_share: null, absence_penalty: "", interest_method: "UNKNOWN" }],
+    success: true, cycles: [{ id: 9, status: "draft", transactions_frozen: true, name: "Draft", cost_per_share: null, absence_penalty: "", interest_method: "UNKNOWN" }],
   }));
-  assert.deepEqual(await fetchCycles("access", "cebu"), [{ id: 9, status: "draft", details: { name: "Draft" } }]);
+  assert.deepEqual(await fetchCycles("access", "cebu"), [{ id: 9, status: "draft", transactions_frozen: true, details: { name: "Draft" } }]);
 });
 
 test("creation is blocked when any cycle is active", async (t) => {
   assert.equal(canAddCycle([]), true);
   assert.equal(canAddCycle([{ id: 1, status: "INACTIVE" }]), true);
   const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({
-    success: true, cycles: [{ id: 1, status: "INACTIVE" }, { id: 2, status: "ACTIVE" }],
+    success: true, cycles: [{ id: 1, status: "INACTIVE", transactions_frozen: false }, { id: 2, status: "ACTIVE", transactions_frozen: false }],
   }));
   await assert.rejects(createCycle("access", "cebu", payload), /active cycle already exists/);
   assert.equal(fetch.mock.callCount(), 1);

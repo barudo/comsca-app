@@ -8,6 +8,9 @@ import { fetchTransactionEntries, type TransactionEntry } from "@/lib/transactio
 import { TransactionDocument } from "@/components/transaction-document";
 import { canViewBusiness } from "@/lib/auth";
 import { voidTransaction } from "@/lib/void-transaction";
+import { isTransactionsFrozenError } from "@/lib/api-errors";
+import { useCycles } from "@/components/cycle-provider";
+import { TransactionFrozenNotice } from "@/components/transaction-frozen-notice";
 
 const tabs = [
   { label: "Payment Receipts", document: "PR" },
@@ -75,9 +78,9 @@ function TransactionEntriesDrawer({ accessToken, groupSlug, transactionId, docum
   </dialog>;
 }
 
-function VoidDocumentDrawer({ accessToken, groupSlug, transactionId, documentNumber, documentType, onClose, onVoided }: {
+function VoidDocumentDrawer({ accessToken, groupSlug, transactionId, documentNumber, documentType, transactionsFrozen, refreshCycles, onClose, onVoided }: {
   accessToken: string; groupSlug: string; transactionId: string; documentNumber: string;
-  documentType: RegisterDocument; onClose: () => void; onVoided: () => void;
+  documentType: RegisterDocument; transactionsFrozen: boolean; refreshCycles: () => Promise<void>; onClose: () => void; onVoided: () => void;
 }) {
   const documentName = documentType === "PR" ? "Payment Receipt" : documentType === "DV" ? "Disbursement Voucher" : "Journal Voucher";
   const dialog = useRef<HTMLDialogElement>(null);
@@ -87,7 +90,7 @@ function VoidDocumentDrawer({ accessToken, groupSlug, transactionId, documentNum
   const [error, setError] = useState("");
 
   async function handleVoid() {
-    if (submitting.current) return;
+    if (submitting.current || transactionsFrozen) return;
     submitting.current = true;
     setPending(true);
     setError("");
@@ -96,6 +99,7 @@ function VoidDocumentDrawer({ accessToken, groupSlug, transactionId, documentNum
       onVoided();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to void this document.");
+      if (isTransactionsFrozenError(cause)) void refreshCycles().catch(() => {});
     } finally {
       submitting.current = false;
       setPending(false);
@@ -123,13 +127,15 @@ function VoidDocumentDrawer({ accessToken, groupSlug, transactionId, documentNum
       {error && <p role="alert">{error}</p>}
       <div className="cycle-drawer-footer">
         <button ref={cancelButton} type="button" className="cycle-cancel" disabled={pending} onClick={onClose}>Cancel</button>
-        <button type="button" className="submit-button" disabled={pending} onClick={handleVoid}>{pending ? "Voiding…" : "Void Document"}</button>
+        <button type="button" className="submit-button" disabled={pending || transactionsFrozen} title={transactionsFrozen ? "Transactions are currently frozen." : undefined} onClick={handleVoid}>{pending ? "Voiding…" : "Void Document"}</button>
       </div>
     </dialog>
   );
 }
 
 export default function TransactionManagementPage() {
+  const { currentCycle, refreshCycles } = useCycles();
+  const transactionsFrozen = currentCycle?.cycle.transactions_frozen === true;
   const { user, session } = useAuth();
   const { group, subdomain } = useCommunity();
   const [activeTab, setActiveTab] = useState(0);
@@ -168,6 +174,7 @@ export default function TransactionManagementPage() {
       {canViewBusiness(user) ? (
         <>
           <p>Manage transactions for {group?.name || subdomain || "your COMSCA community"}.</p>
+          <TransactionFrozenNotice cycle={currentCycle?.cycle} />
           <div className="account-tabs" role="tablist" aria-label="Transaction types">
             {tabs.map((tab, index) => (
               <button
@@ -220,7 +227,7 @@ export default function TransactionManagementPage() {
                       const id = row.transaction_id ?? row.id;
                       setVoidDocument({ key: requestKey, id: typeof id === "string" || typeof id === "number" ? String(id) : "", number: displayValue("document_number", row.document_number) });
                     }
-                  }}>void</button></td></tr>)}
+                  }} disabled={transactionsFrozen} title={transactionsFrozen ? "Transactions are currently frozen." : undefined}>void</button></td></tr>)}
                 </tbody>
               </table>
             </div>}
@@ -247,6 +254,8 @@ export default function TransactionManagementPage() {
             transactionId={voidDocument.id}
             documentNumber={voidDocument.number}
             documentType={document}
+            transactionsFrozen={transactionsFrozen}
+            refreshCycles={refreshCycles}
             onClose={() => setVoidDocument(null)}
             onVoided={() => { setVoidDocument(null); setRetry((value) => value + 1); }}
           />}

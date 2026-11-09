@@ -1,3 +1,5 @@
+import { apiRequestError } from "./api-errors";
+
 export type ExpenseEntry = {
   amount: string;
   description: string;
@@ -26,7 +28,7 @@ export async function postExpense(accessToken: string, groupSlug: string, expens
   }
   const body = await response.json().catch(() => null);
   if (!response.ok || body?.success !== true) {
-    throw new Error(typeof body?.error === "string" ? body.error : "Expense status could not be confirmed. Check transaction records before trying again.");
+    throw apiRequestError(response, body, "Expense status could not be confirmed. Check transaction records before trying again.");
   }
 }
 
@@ -92,6 +94,6 @@ export async function payExpenses(accessToken: string, groupSlug: string, paymen
   }
   const body = await response.json().catch(() => null);
   if (!response.ok || body?.success !== true) {
-    throw new Error(typeof body?.error === "string" ? body.error : uncertainMessage);
+    throw apiRequestError(response, body, uncertainMessage);
   }
 }

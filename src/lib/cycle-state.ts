@@ -34,6 +34,12 @@ export type DraftDetails = {
 
 export type DisplayCycle = Cycle;
 
+export function canUnfreezeCycle(cycle: Cycle | null | undefined): boolean {
+  if (!cycle) return false;
+  const status = cycle.status.trim().toUpperCase();
+  return status !== "DISTRIBUTING" && status !== "CLOSED";
+}
+
 // A distributing or active cycle takes precedence over any future drafts.
 export function getCurrentCycle(cycles: DisplayCycle[]) {
   for (const status of ["DISTRIBUTING", "ACTIVE", "DRAFT"]) {

@@ -1,3 +1,5 @@
+import { apiRequestError } from "./api-errors";
+
 export type LoanDisbursement = {
   user_id: string;
   cycle_id: string;
@@ -28,6 +30,6 @@ export async function disburseLoan(accessToken: string, groupSlug: string, payme
   }
   const body = await response.json().catch(() => null);
   if (!response.ok || body?.success !== true) {
-    throw new Error(typeof body?.error === "string" ? body.error : "Disbursement status could not be confirmed. Check transaction records before trying again.");
+    throw apiRequestError(response, body, "Disbursement status could not be confirmed. Check transaction records before trying again.");
   }
 }

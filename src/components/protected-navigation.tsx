@@ -9,8 +9,9 @@ import { useCommunity } from "@/components/community-provider";
 import { useAuth } from "@/components/auth-provider";
 import { canManageCycles, canViewBusiness, canViewMembers } from "@/lib/auth";
 
-const administrationLinks = [
+const administrationLinks: { href: string; label: string; canView: typeof canManageCycles; icon?: "lock" }[] = [
   { href: "/cycles", label: "Cycle", canView: canManageCycles },
+  { href: "/administration/transaction-freeze", label: "Transaction Freeze", canView: canManageCycles, icon: "lock" },
   { href: "/groups", label: "Members", canView: canViewMembers },
   {
     href: "/transaction-management",
@@ -137,7 +138,7 @@ export function ProtectedNavigation() {
                 Administration<span aria-hidden="true">▾</span>
               </summary>
               <div className="protected-account-dropdown">
-                {visibleAdministrationLinks.map(({ href, label }) => (
+                {visibleAdministrationLinks.map(({ href, label, icon }) => (
                   <Link
                     key={href}
                     href={href}
@@ -152,6 +153,7 @@ export function ProtectedNavigation() {
                       }
                     }}
                   >
+                    {icon === "lock" && <svg className="protected-link-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="11" rx="2" stroke="currentColor" strokeWidth="1.8" /><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>}
                     {label}
                   </Link>
                 ))}

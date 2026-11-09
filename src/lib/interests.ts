@@ -1,3 +1,5 @@
+import { apiRequestError } from "./api-errors";
+
 export type InterestCharge = { credit: string; debit: string };
 
 export async function chargeInterest(accessToken: string, groupSlug: string, charge: InterestCharge) {
@@ -20,6 +22,6 @@ export async function chargeInterest(accessToken: string, groupSlug: string, cha
   }
   const body = await response.json().catch(() => null);
   if (!response.ok || body?.success !== true) {
-    throw new Error(typeof body?.error === "string" ? body.error : "Interest charge status could not be confirmed. Check transaction records before trying again.");
+    throw apiRequestError(response, body, "Interest charge status could not be confirmed. Check transaction records before trying again.");
   }
 }

@@ -1,3 +1,5 @@
+import { apiRequestError } from "./api-errors";
+
 export async function voidTransaction(accessToken: string, groupSlug: string, transactionId: string): Promise<void> {
   if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
   if (!transactionId.trim()) throw new Error("This document has no transaction ID.");
@@ -16,6 +18,6 @@ export async function voidTransaction(accessToken: string, groupSlug: string, tr
   if (response.status === 204) return;
   const body = await response.json().catch(() => null);
   if (!response.ok || body?.success !== true) {
-    throw new Error(typeof body?.error === "string" ? body.error : "Void status could not be confirmed. Check transaction records before trying again.");
+    throw apiRequestError(response, body, "Void status could not be confirmed. Check transaction records before trying again.");
   }
 }

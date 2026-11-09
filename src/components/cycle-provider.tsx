@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { fetchCycles, type Cycle } from "@/lib/cycles";
@@ -18,6 +19,7 @@ const CycleContext = createContext<{
 function CycleSession({ accessToken, groupSlug, children }: { accessToken: string; groupSlug: string; children: ReactNode }) {
   const [state, setState] = useState<{ cycles: Cycle[]; loading: boolean; error: string }>({ cycles: [], loading: true, error: "" });
   const request = useRef<AbortController | null>(null);
+  const pathname = usePathname();
   const loadCycles = useCallback(async () => {
     request.current?.abort();
     const controller = new AbortController();
@@ -42,6 +44,29 @@ function CycleSession({ accessToken, groupSlug, children }: { accessToken: strin
     if (accessToken && groupSlug) void loadCycles().catch(() => {});
     return () => request.current?.abort();
   }, [accessToken, groupSlug, loadCycles]);
+
+  const previousPathname = useRef(pathname);
+  useEffect(() => {
+    if (previousPathname.current === pathname) return;
+    previousPathname.current = pathname;
+    void refreshCycles().catch(() => {});
+  }, [pathname, refreshCycles]);
+
+  useEffect(() => {
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") void refreshCycles().catch(() => {});
+    }
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadCycles().catch(() => {});
+    }, 15000);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.clearInterval(interval);
+    };
+  }, [loadCycles, refreshCycles]);
 
   const activeCycle = !state.loading && !state.error
     ? state.cycles.find((cycle) => cycle.status.trim().toUpperCase() === "ACTIVE") ?? null

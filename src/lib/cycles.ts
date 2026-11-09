@@ -1,6 +1,7 @@
 import type { DraftDetails } from "./cycle-state";
+import { apiRequestError } from "./api-errors";
 
-export type Cycle = { id: string | number; status: string; details?: Partial<DraftDetails> };
+export type Cycle = { id: string | number; status: string; transactions_frozen: boolean; details?: Partial<DraftDetails> };
 
 export type CreateCycleInput = {
   interest_rate: string;
@@ -14,11 +15,11 @@ export function canAddCycle(cycles: Cycle[]): boolean {
   return cycles.every((cycle) => cycle.status.trim().toUpperCase() !== "ACTIVE");
 }
 
-async function cycleRequest(accessToken: string, groupSlug: string, options: RequestInit, id?: Cycle["id"]) {
+async function cycleRequest(accessToken: string, groupSlug: string, options: RequestInit, id?: Cycle["id"], action?: "freeze" | "unfreeze") {
   if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
   const base = (process.env.NEXT_PUBLIC_API_URL ||
     "https://ryvggw5w5m.execute-api.ap-southeast-1.amazonaws.com/api/v1").replace(/\/+$/, "");
-  const response = await fetch(`${base}/cycles${id === undefined ? "" : `/${encodeURIComponent(String(id))}`}`, {
+  const response = await fetch(`${base}/cycles${id === undefined ? "" : `/${encodeURIComponent(String(id))}${action ? `/${action}` : ""}`}`, {
     ...options,
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -28,9 +29,10 @@ async function cycleRequest(accessToken: string, groupSlug: string, options: Req
     cache: "no-store",
     signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
   });
-  const body = await response.json();
+  if (action && response.status === 204) return { success: true };
+  const body = await response.json().catch(() => null);
   if (!response.ok || body?.success !== true) {
-    throw new Error(typeof body?.error === "string" ? body.error : "Unable to complete the cycle request. Please try again.");
+    throw apiRequestError(response, body, "Unable to complete the cycle request. Please try again.");
   }
   return body;
 }
@@ -79,6 +81,7 @@ export async function fetchCycles(accessToken: string, groupSlug: string, signal
       throw new Error("Unable to read cycles.");
     }
     const fields = cycle as Record<string, unknown>;
+    if (typeof fields.transactions_frozen !== "boolean") throw new Error("Unable to read cycles.");
     const details: Partial<DraftDetails> = {};
     for (const key of ["name", "description"] as const) {
       if (typeof fields[key] === "string") details[key] = fields[key];
@@ -116,7 +119,7 @@ export async function fetchCycles(accessToken: string, groupSlug: string, signal
     if (method === "COMPOUND" || method === "COMPOUNDED") details.interestType = "compounded";
     if (method === "SIMPLE") details.interestType = "simple";
     if (method === "REDUCING" || method === "REDUCING_BALANCE") details.interestType = "reducing";
-    return { id: cycle.id, status: cycle.status, ...(Object.keys(details).length ? { details } : {}) };
+    return { id: cycle.id, status: cycle.status, transactions_frozen: fields.transactions_frozen, ...(Object.keys(details).length ? { details } : {}) };
   });
 }
 
@@ -133,4 +136,12 @@ export async function createCycle(accessToken: string, groupSlug: string, payloa
 
 export async function closeCycle(accessToken: string, groupSlug: string, id: Cycle["id"]) {
   return cycleRequest(accessToken, groupSlug, { method: "PATCH", body: JSON.stringify({ status: "closed" }) }, id);
+}
+
+export async function freezeCycleTransactions(accessToken: string, groupSlug: string, id: Cycle["id"]) {
+  return cycleRequest(accessToken, groupSlug, { method: "PATCH" }, id, "freeze");
+}
+
+export async function unfreezeCycleTransactions(accessToken: string, groupSlug: string, id: Cycle["id"]) {
+  return cycleRequest(accessToken, groupSlug, { method: "PATCH" }, id, "unfreeze");
 }

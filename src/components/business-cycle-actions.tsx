@@ -5,6 +5,8 @@ import { chargeContribution } from "@/lib/contributions";
 import { chargeInterest } from "@/lib/interests";
 import { PaymentAccounts } from "@/components/payment-accounts";
 import { fetchCycleAccounts, type LedgerAccount } from "@/lib/accounts";
+import { useCycles } from "@/components/cycle-provider";
+import { isTransactionsFrozenError } from "@/lib/api-errors";
 
 const actionLabels = {
   interest: "Apply Loan Interest",
@@ -15,6 +17,8 @@ type Selection = { action: Action; trigger: HTMLButtonElement };
 type Context = { accessToken: string; groupSlug: string; cycleId: string | number; requiredMonthlyContribution?: string; onMembersUpdated: () => Promise<unknown> };
 
 function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, requiredMonthlyContribution, onMembersUpdated, onClose }: Context & { selection: Selection; onClose: () => void }) {
+  const { currentCycle, refreshCycles } = useCycles();
+  const transactionsFrozen = currentCycle?.cycle.transactions_frozen === true;
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const [accounts, setAccounts] = useState<LedgerAccount[] | null>(null);
@@ -72,7 +76,7 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, required
 
   async function confirm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!debit || !credit || error || inFlight.current || submitted) return;
+    if (!debit || !credit || error || inFlight.current || submitted || transactionsFrozen) return;
     if (interest) {
       inFlight.current = true;
       setSubmitting(true);
@@ -85,6 +89,7 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, required
         await refreshMembersAfterCharge("Interest application");
       } catch (cause: unknown) {
         setSubmitError(cause instanceof Error ? cause.message : "Unable to apply interest.");
+        if (isTransactionsFrozenError(cause)) void refreshCycles().catch(() => {});
       } finally {
         inFlight.current = false;
         setSubmitting(false);
@@ -106,6 +111,7 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, required
       await refreshMembersAfterCharge("Contribution charge");
     } catch (cause: unknown) {
       setSubmitError(cause instanceof Error ? cause.message : "Unable to charge contribution.");
+      if (isTransactionsFrozenError(cause)) void refreshCycles().catch(() => {});
     } finally {
       inFlight.current = false;
       setSubmitting(false);
@@ -120,7 +126,7 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, required
       </div>
       <p id="cycle-action-description">{interest ? "This will calculate and apply interest to all eligible outstanding loans for the current cycle." : "This will add the required contribution to all eligible members."}</p>
       <form className="cycle-draft-form" onSubmit={confirm}>
-        <fieldset className="business-payment-fields" disabled={submitting || submitted}>
+        <fieldset className="business-payment-fields" disabled={submitting || submitted || transactionsFrozen}>
           {!interest && <div className="field">
             <label htmlFor="contribution-amount">Amount (₱)</label>
             <input id="contribution-amount" name="amount" type="number" min="0.01" step="0.01" inputMode="decimal" required value={amount} onChange={(event) => { setAmount(event.target.value); setSubmitError(""); }} />
@@ -132,7 +138,7 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, required
         </fieldset>
         <div className="cycle-drawer-footer">
           <button type="button" className="cycle-cancel" disabled={submitting} onClick={onClose}>{submitted ? "Close" : "Cancel"}</button>
-          <button type="submit" className="submit-button" disabled={!debit || !credit || !!error || submitting || submitted}>{submitting ? "Charging…" : actionLabels[selection.action]}</button>
+          <button type="submit" className="submit-button" disabled={transactionsFrozen || !debit || !credit || !!error || submitting || submitted} title={transactionsFrozen ? "Transactions are currently frozen." : undefined}>{submitting ? "Charging…" : actionLabels[selection.action]}</button>
         </div>
         {submitError && <p role="alert">{submitError}</p>}
         <p className="business-submit-notice" role="status">{notice}</p>
@@ -142,10 +148,12 @@ function CycleActionPanel({ selection, accessToken, groupSlug, cycleId, required
 }
 
 export function BusinessCycleActions(props: Context) {
+  const { currentCycle } = useCycles();
+  const transactionsFrozen = currentCycle?.cycle.transactions_frozen === true;
   const [selection, setSelection] = useState<Selection | null>(null);
   return <>
     <div className="business-heading-actions">
-      {(Object.keys(actionLabels) as Action[]).map((action) => <button key={action} type="button" className="submit-button" onClick={(event) => setSelection({ action, trigger: event.currentTarget })}>{actionLabels[action]}</button>)}
+      {(Object.keys(actionLabels) as Action[]).map((action) => <button key={action} type="button" className="submit-button" disabled={transactionsFrozen} title={transactionsFrozen ? "Transactions are currently frozen." : undefined} onClick={(event) => setSelection({ action, trigger: event.currentTarget })}>{actionLabels[action]}</button>)}
     </div>
     {selection && <CycleActionPanel {...props} selection={selection} onClose={() => setSelection(null)} />}
   </>;

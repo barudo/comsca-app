@@ -5,13 +5,16 @@ import { useAuth } from "@/components/auth-provider";
 import { useCommunity } from "@/components/community-provider";
 import { fetchExpenses, payExpenses, type Expense } from "@/lib/expenses";
 import { useCycles } from "@/components/cycle-provider";
+import { TransactionFrozenNotice } from "@/components/transaction-frozen-notice";
 import { fetchCycleAccounts, type LedgerAccount } from "@/lib/accounts";
 import { amountToCents } from "@/lib/money";
+import { isTransactionsFrozenError } from "@/lib/api-errors";
 
 const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
 export default function DisbursePage() {
-  const { activeCycle, loading: cycleLoading, error: cycleError, refreshCycles } = useCycles();
+  const { activeCycle, currentCycle, loading: cycleLoading, error: cycleError, refreshCycles } = useCycles();
+  const transactionsFrozen = currentCycle?.cycle.transactions_frozen === true;
   const { session } = useAuth();
   const { subdomain } = useCommunity();
   const accessToken = session?.access_token ?? "";
@@ -31,7 +34,7 @@ export default function DisbursePage() {
   const currentAccountsError = accountsError?.key === accountsKey ? accountsError.message : "";
   const liabilityAccounts = accounts?.filter((account) => account.type === "LIABILITY") ?? [];
   const assetAccounts = accounts?.filter((account) => account.type === "ASSET") ?? [];
-  const canSubmit = !cycleLoading && !cycleError && liabilityAccounts.some((account) => String(account.id) === debit) && assetAccounts.some((account) => String(account.id) === credit);
+  const canSubmit = !transactionsFrozen && !cycleLoading && !cycleError && liabilityAccounts.some((account) => String(account.id) === debit) && assetAccounts.some((account) => String(account.id) === credit);
   const [retry, setRetry] = useState(0);
   const requestKey = accessToken && groupSlug ? `${contextKey}:${retry}` : null;
   const [result, setResult] = useState<{ key: string; expenses: Expense[] } | null>(null);
@@ -87,6 +90,7 @@ export default function DisbursePage() {
       setRetry((value) => value + 1);
     } catch (cause) {
       setFeedback({ key: contextKey, kind: "error", message: cause instanceof Error ? cause.message : "Unable to disburse payment." });
+      if (isTransactionsFrozenError(cause)) void refreshCycles().catch(() => {});
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -105,13 +109,14 @@ export default function DisbursePage() {
     <main className="protected-content">
       <h1>Disburse Payment</h1>
       <p>Select expenses to add to your payment.</p>
+      <TransactionFrozenNotice cycle={currentCycle?.cycle} />
       {!groupSlug && <p className="members-feedback" role="status">Please sign in through your community’s URL to load expenses.</p>}
       {requestKey && !expenses && !currentError && <p className="members-feedback" role="status">Loading expenses…</p>}
       {currentError && <p className="members-feedback" role="alert">{currentError} <button className="text-button" type="button" onClick={() => setRetry((value) => value + 1)}>Try again</button></p>}
       {expenses?.length === 0 && <p className="members-feedback" role="status">No expenses available.</p>}
       <div className="disburse-expenses">
         {expenses?.map((expense) => (
-          <button className="disburse-expense-card" type="button" key={expense.id} disabled={submitting || selectedIds.includes(expense.id)} onClick={() => addExpense(expense.id)}>
+          <button className="disburse-expense-card" type="button" key={expense.id} disabled={submitting || transactionsFrozen || selectedIds.includes(expense.id)} title={transactionsFrozen ? "Transactions are currently frozen." : undefined} onClick={() => addExpense(expense.id)}>
             <strong>{expense.description || `Expense #${expense.id}`}</strong>
             <span className="disburse-expense-amount">{currency.format(Number(expense.amount))}</span>
             <span>{selectedIds.includes(expense.id) ? "Added to payment" : "Add to payment"}</span>
@@ -129,7 +134,7 @@ export default function DisbursePage() {
                 <tr key={expense.id}>
                   <th scope="row">{expense.description || `Expense #${expense.id}`}</th>
                   <td>{currency.format(Number(expense.amount))}</td>
-                  <td><button type="button" className="text-button" disabled={submitting} aria-label={`Remove ${expense.description || `expense #${expense.id}`}`} onClick={() => setSelection((previous) => previous ? { ...previous, ids: previous.ids.filter((id) => id !== expense.id) } : null)}>Remove</button></td>
+                  <td><button type="button" className="text-button" disabled={submitting || transactionsFrozen} title={transactionsFrozen ? "Transactions are currently frozen." : undefined} aria-label={`Remove ${expense.description || `expense #${expense.id}`}`} onClick={() => setSelection((previous) => previous ? { ...previous, ids: previous.ids.filter((id) => id !== expense.id) } : null)}>Remove</button></td>
                 </tr>
               ))}
             </tbody>
@@ -142,7 +147,7 @@ export default function DisbursePage() {
         {accountsKey && !accounts && !currentAccountsError && <p role="status">Loading accounts…</p>}
         {currentAccountsError && <p role="alert">{currentAccountsError} <button className="text-button" type="button" onClick={() => setAccountRetry((value) => value + 1)}>Try again</button></p>}
         <form className="expense-form" onSubmit={handleSubmit}>
-          <fieldset disabled={submitting || !accounts || cycleLoading || Boolean(cycleError)} aria-busy={submitting}>
+          <fieldset disabled={submitting || !accounts || cycleLoading || Boolean(cycleError) || transactionsFrozen} aria-busy={submitting}>
             <div className="transaction-account-row">
               <div className="field">
                 <label htmlFor="disburse-debit">Pay From Liability</label>

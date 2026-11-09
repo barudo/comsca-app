@@ -1,3 +1,5 @@
+import { apiRequestError } from "./api-errors";
+
 export type ContributionCharge = { amount: string; debit: string; credit: string };
 
 export async function chargeContribution(accessToken: string, groupSlug: string, payment: ContributionCharge) {
@@ -21,6 +23,6 @@ export async function chargeContribution(accessToken: string, groupSlug: string,
   }
   const body = await response.json().catch(() => null);
   if (!response.ok || body?.success !== true) {
-    throw new Error(typeof body?.error === "string" ? body.error : "Contribution charge status could not be confirmed. Check transaction records before trying again.");
+    throw apiRequestError(response, body, "Contribution charge status could not be confirmed. Check transaction records before trying again.");
   }
 }
