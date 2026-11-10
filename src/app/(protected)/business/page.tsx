@@ -15,6 +15,7 @@ import { postPayments, type PaymentEntry } from "@/lib/payments";
 import { amountToCents } from "@/lib/money";
 import { chargePenalty } from "@/lib/penalties";
 import { canViewBusiness } from "@/lib/auth";
+import { ChargeMemberContribution } from "@/components/charge-member-contribution";
 import { fetchCycleMembers, type CycleMember } from "@/lib/members";
 import { TransactionFrozenNotice } from "@/components/transaction-frozen-notice";
 import { isTransactionsFrozenError } from "@/lib/api-errors";
@@ -1194,6 +1195,7 @@ function BusinessMembers({
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null);
+  const [chargeTarget, setChargeTarget] = useState<{ member: CycleMember; trigger: HTMLButtonElement } | null>(null);
 
   async function refreshCycleMembers() {
     const cycleMembers = await fetchCycleMembers(
@@ -1354,6 +1356,15 @@ function BusinessMembers({
                           {action}
                         </button>
                       ))}
+                      <button
+                        type="button"
+                        aria-label={`Charge Contribution for ${member.name || "unnamed member"}`}
+                        disabled={transactionsFrozen || member.id === undefined}
+                        title={transactionsFrozen ? "Transactions are currently frozen." : undefined}
+                        onClick={(event) => setChargeTarget({ member, trigger: event.currentTarget })}
+                      >
+                        Charge Contribution
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -1361,6 +1372,19 @@ function BusinessMembers({
             </tbody>
           </table>
         </div>
+      )}
+      {chargeTarget && (
+        <ChargeMemberContribution
+          key={String(chargeTarget.member.id)}
+          accessToken={accessToken}
+          groupSlug={groupSlug}
+          cycleId={cycleId}
+          requiredMonthlyContribution={requiredMonthlyContribution}
+          member={chargeTarget.member}
+          trigger={chargeTarget.trigger}
+          onCharged={refreshCycleMembers}
+          onClose={() => setChargeTarget(null)}
+        />
       )}
       {selection && (
         <ActionPanel

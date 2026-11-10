@@ -1,6 +1,6 @@
 import { apiRequestError } from "./api-errors";
 
-export type ContributionCharge = { amount: string; debit: string; credit: string };
+export type ContributionCharge = { amount: string; debit: string; credit: string; description?: string; user_ids?: string[] };
 
 export async function chargeContribution(accessToken: string, groupSlug: string, payment: ContributionCharge) {
   if (!accessToken || !groupSlug.trim()) throw new Error("Please sign in through your community’s URL.");
